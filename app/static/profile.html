@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Resume Workspace · Profile</title>
+    <meta name="description" content="Review and edit the current structured profile.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body data-page="profile">
+    <div class="app-frame">
+      <header class="topbar">
+        <a class="brand" href="/">
+          <span class="brand-mark">RR</span>
+          <span class="brand-copy">
+            <strong>Resume Workspace</strong>
+            <span>Profile workspace</span>
+          </span>
+        </a>
+        <nav class="topnav">
+          <a class="topnav-link" href="/">Evidence</a>
+          <a class="topnav-link is-active" href="/profile">Profile</a>
+          <a class="topnav-link" href="/job">Job Description</a>
+          <a class="topnav-link" href="/wiki">Wiki</a>
+        </nav>
+        <div class="topbar-actions">
+          <button class="secondary-button" type="button" id="switch-profile-button">Switch Profile</button>
+          <span class="identity-pill" id="auth-user-pill">Account</span>
+          <button class="secondary-button" type="button" id="logout-button">Sign Out</button>
+        </div>
+      </header>
+
+      <main class="page-stack">
+        <section class="hero-panel">
+          <span class="eyebrow">Profile management</span>
+          <h1>Structured profile</h1>
+          <p>This page is for cleanups and overrides. Uploads keep the profile updating automatically; edit here only when you want to refine what should be shown.</p>
+          <div class="hero-meta">
+            <div>
+              <strong id="current-profile-name">Loading profile</strong>
+              <span id="current-profile-meta">Preparing workspace context.</span>
+            </div>
+            <span class="subtle" id="engine-summary">Connecting to the workspace.</span>
+          </div>
+        </section>
+
+        <section class="stats-row">
+          <article class="metric-card">
+            <span>Documents</span>
+            <strong id="metric-documents">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Experience</span>
+            <strong id="metric-pending">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Projects</span>
+            <strong id="metric-approved">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Skills</span>
+            <strong id="metric-graph">0</strong>
+          </article>
+        </section>
+
+        <section class="split-grid profile-editor-grid">
+          <article class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">Manual edits</span>
+                <h2>Manual overrides</h2>
+              </div>
+            </div>
+            <form class="form-stack" id="profile-overview-form">
+              <label class="field-label" for="profile-identity-name">Full name</label>
+              <input id="profile-identity-name" type="text" placeholder="Full name">
+
+              <label class="field-label" for="profile-identity-headline">Headline</label>
+              <input id="profile-identity-headline" type="text" placeholder="Document AI Engineer · Backend ML Builder">
+
+              <label class="field-label" for="profile-identity-location">Location</label>
+              <input id="profile-identity-location" type="text" placeholder="Bengaluru, India">
+
+              <label class="field-label" for="profile-identity-summary">Summary</label>
+              <textarea id="profile-identity-summary" rows="7" placeholder="A concise summary of the current profile."></textarea>
+
+              <label class="field-label" for="profile-emails-input">Emails</label>
+              <input id="profile-emails-input" type="text" placeholder="name@example.com, alt@example.com">
+
+              <label class="field-label" for="profile-phones-input">Phones</label>
+              <input id="profile-phones-input" type="text" placeholder="+91 ..., +1 ...">
+
+              <label class="field-label" for="profile-links-input">Public links</label>
+              <textarea id="profile-links-input" rows="5" placeholder="One URL per line"></textarea>
+
+              <label class="field-label" for="profile-skills-input">Skills</label>
+              <textarea id="profile-skills-input" rows="5" placeholder="Python, OCR, FastAPI, Redis, LayoutLMv3"></textarea>
+
+              <div class="inline-row wrap">
+                <button class="primary-button" type="submit" id="save-profile-overview-button">Save profile</button>
+                <button class="secondary-button" type="button" id="reset-profile-overview-button">Reset to auto</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="surface stack-group">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">Auto extracted</span>
+                <h2>Experience</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="profile-auto-experience">
+              <div class="empty-state">Work experience entries will appear here after upload.</div>
+            </div>
+
+            <div class="surface-header compact section-separator">
+              <div>
+                <span class="eyebrow">Auto extracted</span>
+                <h2>Education</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="profile-auto-education">
+              <div class="empty-state">Education entries will appear here after upload.</div>
+            </div>
+
+            <div class="surface-header compact section-separator">
+              <div>
+                <span class="eyebrow">Auto extracted</span>
+                <h2>Projects</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="profile-auto-projects">
+              <div class="empty-state">Project entries will appear here after upload.</div>
+            </div>
+
+            <div class="surface-header compact section-separator">
+              <div>
+                <span class="eyebrow">Auto extracted</span>
+                <h2>Certifications</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="profile-auto-certifications">
+              <div class="empty-state">Certification entries will appear here after upload.</div>
+            </div>
+
+            <div class="surface-header compact section-separator">
+              <div>
+                <span class="eyebrow">Sources</span>
+                <h2>Evidence behind this profile</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="profile-auto-sources">
+              <div class="empty-state">Source evidence will appear here after upload.</div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast-region" id="toast-region" aria-live="polite"></div>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

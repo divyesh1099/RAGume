@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Resume Workspace · Wiki</title>
+    <meta name="description" content="Browse the selected profile as a source-backed wiki.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body data-page="wiki">
+    <div class="app-frame">
+      <header class="topbar">
+        <a class="brand" href="/">
+          <span class="brand-mark">RR</span>
+          <span class="brand-copy">
+            <strong>Resume Workspace</strong>
+            <span>Profile workspace</span>
+          </span>
+        </a>
+        <nav class="topnav">
+          <a class="topnav-link" href="/">Evidence</a>
+          <a class="topnav-link" href="/profile">Profile</a>
+          <a class="topnav-link" href="/job">Job Description</a>
+          <a class="topnav-link is-active" href="/wiki">Wiki</a>
+        </nav>
+        <div class="topbar-actions">
+          <button class="secondary-button" type="button" id="switch-profile-button">Switch Profile</button>
+          <span class="identity-pill" id="auth-user-pill">Account</span>
+          <button class="secondary-button" type="button" id="logout-button">Sign Out</button>
+        </div>
+      </header>
+
+      <main class="page-stack">
+        <section class="hero-panel">
+          <span class="eyebrow">Reading view</span>
+          <h1>Profile Wiki</h1>
+          <p>Browse the current profile as a structured wiki generated from uploaded evidence and the profile data derived from it.</p>
+          <div class="hero-meta">
+            <div>
+              <strong id="current-profile-name">Loading profile</strong>
+              <span id="current-profile-meta">Preparing workspace context.</span>
+            </div>
+            <span class="subtle" id="engine-summary">Connecting to the workspace.</span>
+          </div>
+        </section>
+
+        <section class="stats-row">
+          <article class="metric-card">
+            <span>Documents</span>
+            <strong id="metric-documents">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Experience</span>
+            <strong id="metric-pending">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Projects</span>
+            <strong id="metric-approved">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Skills</span>
+            <strong id="metric-graph">0</strong>
+          </article>
+        </section>
+
+        <section class="wiki-grid">
+          <aside class="surface wiki-browser">
+            <div class="surface-header compact">
+              <div>
+                <span class="eyebrow">Pages</span>
+                <h2>Wiki index</h2>
+              </div>
+              <div class="subtle" id="wiki-article-count">0 pages</div>
+            </div>
+            <label class="search-field" for="wiki-search-input">
+              <span class="sr-only">Search wiki pages</span>
+              <input id="wiki-search-input" type="search" placeholder="Search pages">
+            </label>
+            <div class="wiki-article-list" id="wiki-article-list">
+              <div class="empty-state">Wiki pages will appear here.</div>
+            </div>
+          </aside>
+
+          <article class="surface wiki-canvas">
+            <header class="wiki-header">
+              <div>
+                <span class="eyebrow">Generated wiki</span>
+                <h2 class="wiki-title" id="wiki-title">Profile</h2>
+                <p class="wiki-lede" id="wiki-lede">Loading wiki article.</p>
+              </div>
+              <div class="identity-pill subtle-pill" id="wiki-generated-at">Generating...</div>
+            </header>
+
+            <div class="wiki-layout">
+              <aside class="wiki-box">
+                <div class="wiki-box-title">On this page</div>
+                <div id="wiki-toc"></div>
+              </aside>
+
+              <div class="wiki-body" id="wiki-body">
+                <div class="empty-state">Wiki content will render here.</div>
+              </div>
+
+              <aside class="wiki-meta">
+                <div class="wiki-box">
+                  <div class="wiki-box-title">Infobox</div>
+                  <dl id="wiki-infobox"></dl>
+                </div>
+                <div class="wiki-box">
+                  <div class="wiki-box-title">Source documents</div>
+                  <div id="wiki-sources"></div>
+                </div>
+                <div class="wiki-box">
+                  <div class="wiki-box-title">Categories</div>
+                  <div class="tag-row" id="wiki-categories"></div>
+                </div>
+                <div class="wiki-box">
+                  <div class="wiki-box-title">See also</div>
+                  <div id="wiki-related" class="wiki-related"></div>
+                </div>
+              </aside>
+            </div>
+
+            <section class="wiki-references-block">
+              <h3>References</h3>
+              <ol class="wiki-reference-list" id="wiki-references">
+                <li class="empty-state">No references listed yet.</li>
+              </ol>
+            </section>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast-region" id="toast-region" aria-live="polite"></div>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1129 @@
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-soft: #f8f9fb;
+  --surface-muted: #f1f3f4;
+  --line: #e5e7eb;
+  --line-strong: #d8dce3;
+  --text: #202124;
+  --muted: #5f6368;
+  --accent: #1a73e8;
+  --accent-soft: #e8f0fe;
+  --success: #188038;
+  --success-soft: #e6f4ea;
+  --warning: #b06000;
+  --warning-soft: #fef7e0;
+  --danger: #d93025;
+  --danger-soft: #fce8e6;
+  --shadow-soft: 0 1px 2px rgba(60, 64, 67, 0.08), 0 4px 16px rgba(60, 64, 67, 0.06);
+  --shadow-strong: 0 8px 32px rgba(60, 64, 67, 0.1);
+  --radius-xl: 24px;
+  --radius-lg: 20px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --font-ui: "Manrope", "Segoe UI", sans-serif;
+  --font-serif: "Newsreader", Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app-frame,
+.selector-frame {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 20px 20px 40px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-soft);
+  position: sticky;
+  top: 12px;
+  z-index: 20;
+  backdrop-filter: blur(10px);
+}
+
+.selector-topbar {
+  position: static;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: var(--text);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.brand-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.brand-copy strong {
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.brand-copy span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.topnav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.topnav-link,
+.module-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.6rem 0.95rem;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.topnav-link:hover,
+.module-link:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.topnav-link.is-active,
+.module-link.is-active {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.page-stack,
+.form-stack,
+.stack-list,
+.selector-main,
+.selector-layout,
+.profile-selector-grid,
+.insight-stack,
+.document-list,
+.claim-list,
+.approved-list,
+.context-list,
+.graph-list,
+.match-list,
+.wiki-article-list,
+.module-nav,
+.workspace-sidebar,
+.workspace-layout,
+.metric-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.page-stack,
+.selector-main {
+  margin-top: 20px;
+}
+
+.selector-layout {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.workspace-layout {
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+
+.workspace-sidebar {
+  align-content: start;
+}
+
+.module-link {
+  justify-content: flex-start;
+  border: 1px solid transparent;
+}
+
+.module-link.is-active {
+  border-color: var(--line);
+}
+
+.hero-panel,
+.selector-hero,
+.page-hero {
+  display: grid;
+  gap: 10px;
+}
+
+.hero-panel {
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.hero-panel h1,
+.selector-hero h1,
+.page-hero h1,
+.auth-card h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.9rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+.hero-panel p,
+.selector-hero p,
+.page-hero p,
+.auth-card p,
+.subtle,
+.empty-state,
+.empty-inline,
+.meta-text,
+.selected-evidence-meta,
+.insight-card p,
+.wiki-lede,
+.wiki-body p,
+.wiki-reference-list li,
+.profile-entry-card p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.hero-panel p {
+  max-width: 760px;
+}
+
+.hero-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.hero-meta strong {
+  display: block;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.hero-meta span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.eyebrow {
+  display: inline-block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.surface,
+.auth-card {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.selector-surface {
+  padding: 22px;
+}
+
+.surface-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.surface-header.compact {
+  margin-bottom: 12px;
+}
+
+.surface-header h2,
+.sidebar-title {
+  margin: 4px 0 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.stats-row,
+.split-grid,
+.profile-snapshot-grid,
+.wiki-grid,
+.wiki-layout {
+  display: grid;
+  gap: 14px;
+}
+
+.stats-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.split-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-snapshot-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wiki-grid {
+  grid-template-columns: 300px minmax(0, 1fr);
+  align-items: start;
+}
+
+.wiki-layout {
+  grid-template-columns: 220px minmax(0, 1fr) 260px;
+  align-items: start;
+}
+
+.metric-card {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.metric-card span,
+.field-label,
+.profile-meta-line,
+.auth-meta,
+.wiki-box-title {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.metric-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+input,
+select {
+  min-height: 44px;
+  padding: 0.78rem 0.9rem;
+}
+
+textarea {
+  padding: 0.9rem 1rem;
+  resize: vertical;
+  min-height: 110px;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.12);
+}
+
+button,
+.file-trigger,
+.profile-card-button,
+.wiki-page-link {
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+.primary-button,
+.secondary-button,
+.tag-button,
+.file-trigger,
+.profile-card-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0.72rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.primary-button:hover,
+.secondary-button:hover,
+.tag-button:hover,
+.file-trigger:hover,
+.profile-card-button:hover {
+  box-shadow: var(--shadow-soft);
+}
+
+.secondary-button:hover,
+.tag-button:hover,
+.file-trigger:hover,
+.profile-card-button:hover {
+  background: var(--surface-muted);
+}
+
+.danger-button {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: rgba(217, 48, 37, 0.16);
+}
+
+.danger-button:hover {
+  background: #fad8d4;
+}
+
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled,
+.file-trigger:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.inline-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inline-row.wrap {
+  flex-wrap: wrap;
+}
+
+.dropzone {
+  display: grid;
+  gap: 8px;
+  padding: 26px 22px;
+  border: 1.5px dashed #c9cfd7;
+  border-radius: 18px;
+  background: var(--surface-soft);
+  cursor: pointer;
+}
+
+.dropzone.is-dragover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.dropzone input,
+.file-trigger input {
+  display: none;
+}
+
+.dropzone-title {
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.dropzone-copy,
+.dropzone-foot,
+.profile-card-body span,
+.wiki-page-link span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.file-trigger {
+  justify-content: flex-start;
+  min-width: 220px;
+}
+
+.search-field {
+  display: block;
+}
+
+.selected-evidence,
+.insight-card,
+.wiki-box,
+.empty-state {
+  border-radius: var(--radius-md);
+}
+
+.selected-evidence {
+  min-height: 128px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.selected-evidence-name {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.tag-row,
+.meta-row,
+.claim-actions,
+.profile-card-actions,
+.wiki-source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wiki-related {
+  display: grid;
+  gap: 10px;
+}
+
+.tag,
+.chip,
+.tag-button,
+.identity-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.identity-pill {
+  background: var(--surface);
+}
+
+.subtle-pill,
+.tag.muted {
+  color: var(--muted);
+}
+
+.chip.success {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: rgba(24, 128, 56, 0.14);
+}
+
+.chip.warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-color: rgba(176, 96, 0, 0.14);
+}
+
+.chip.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: rgba(217, 48, 37, 0.14);
+}
+
+.empty-state {
+  padding: 20px;
+  border: 1px dashed var(--line);
+  background: var(--surface-soft);
+}
+
+.document-list,
+.match-list {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.detail-grid,
+.detail-check-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detail-check-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.document-card,
+.claim-card,
+.approved-card,
+.context-card,
+.graph-card,
+.match-card,
+.wiki-page-link,
+.profile-selector-card,
+.profile-entry-card,
+.source-entry,
+.wiki-related-link,
+.wiki-source-link {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  text-align: left;
+}
+
+.document-card,
+.wiki-page-link {
+  cursor: pointer;
+}
+
+.document-card:hover,
+.wiki-page-link:hover,
+.profile-selector-card:hover {
+  box-shadow: var(--shadow-soft);
+}
+
+.document-card.is-active,
+.wiki-page-link.is-active,
+.profile-selector-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12);
+}
+
+.document-title,
+.claim-text,
+.approved-text,
+.match-title {
+  font-weight: 800;
+}
+
+.profile-block {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface-soft);
+}
+
+.profile-block.span-2,
+.span-2 {
+  grid-column: span 2;
+}
+
+.profile-block-label {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.profile-block-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.profile-block-subtitle {
+  color: var(--muted);
+  font-size: 0.93rem;
+  font-weight: 700;
+}
+
+.profile-line,
+.insight-line {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.detail-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.detail-card-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.detail-line {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.warning-line {
+  border-color: rgba(176, 96, 0, 0.16);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.detail-check {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.compact-stack {
+  gap: 10px;
+}
+
+.profile-entry-card strong,
+.source-entry strong,
+.wiki-page-link strong,
+.profile-card-body strong,
+.wiki-related-link strong,
+.wiki-source-link strong {
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.profile-entry-card span,
+.source-entry span,
+.wiki-related-link span,
+.wiki-source-link span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.profile-editor-grid {
+  align-items: start;
+}
+
+.section-separator {
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.stack-group {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-selector-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.profile-selector-card {
+  gap: 12px;
+}
+
+.profile-card-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 1.12rem;
+  font-weight: 800;
+}
+
+.profile-card-body {
+  display: grid;
+  gap: 4px;
+}
+
+.profile-card-button {
+  min-height: 38px;
+  padding: 0.62rem 0.9rem;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  gap: 20px;
+  padding: 24px;
+}
+
+.auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.auth-brand div {
+  display: grid;
+  gap: 2px;
+}
+
+.auth-brand strong {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.auth-brand span:last-child,
+.auth-meta {
+  color: var(--muted);
+}
+
+.auth-card {
+  width: min(460px, 100%);
+}
+
+.auth-button {
+  width: 100%;
+}
+
+.auth-meta a {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.search-field input {
+  background: var(--surface-soft);
+}
+
+.wiki-browser {
+  position: sticky;
+  top: 90px;
+}
+
+.wiki-canvas {
+  display: grid;
+  gap: 20px;
+}
+
+.wiki-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.wiki-title {
+  margin: 6px 0 0;
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 3.4vw, 2.7rem);
+  font-weight: 700;
+}
+
+.wiki-box {
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface-soft);
+}
+
+.wiki-box-title {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wiki-body {
+  display: grid;
+  gap: 18px;
+}
+
+.wiki-body section {
+  display: grid;
+  gap: 10px;
+}
+
+.wiki-body h3,
+.wiki-references-block h3 {
+  margin: 0;
+  font-size: 1.16rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.wiki-body p,
+.wiki-body li {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.04rem;
+}
+
+.wiki-body ul,
+.wiki-reference-list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.wiki-citation {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 0.1rem 0.42rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.wiki-references-block {
+  display: grid;
+  gap: 12px;
+}
+
+dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.confidence-track {
+  height: 7px;
+  border-radius: 999px;
+  background: #dfe3e7;
+  overflow: hidden;
+}
+
+.confidence-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.evidence-chunk {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+details {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  padding: 12px 14px;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.graph-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.graph-lines div {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.toast-region {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  gap: 10px;
+  z-index: 40;
+}
+
+.toast {
+  min-width: 260px;
+  max-width: 420px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(32, 33, 36, 0.94);
+  color: #fff;
+  box-shadow: var(--shadow-strong);
+}
+
+.toast.error {
+  background: rgba(217, 48, 37, 0.95);
+}
+
+.space-between {
+  justify-content: space-between;
+}
+
+@media (max-width: 1160px) {
+  .selector-layout,
+  .stats-row,
+  .split-grid,
+  .profile-snapshot-grid,
+  .wiki-grid,
+  .wiki-layout,
+  .workspace-layout,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-block.span-2,
+  .span-2 {
+    grid-column: auto;
+  }
+
+  .wiki-browser {
+    position: static;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-frame,
+  .selector-frame {
+    padding: 14px 14px 32px;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .topnav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .selector-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .surface,
+  .auth-card,
+  .hero-panel {
+    padding: 18px;
+  }
+
+  .hero-meta,
+  .inline-row,
+  .profile-card-actions,
+  .claim-actions,
+  .topbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .file-trigger,
+  .primary-button,
+  .secondary-button,
+  .profile-card-button {
+    width: 100%;
+  }
+
+  .brand-copy span {
+    display: none;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

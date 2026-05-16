@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Resume Workspace · Login</title>
+    <meta name="description" content="Log in to Resume Workspace.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body data-page="login">
+    <div class="auth-shell">
+      <div class="auth-brand">
+        <span class="brand-mark">RR</span>
+        <div>
+          <strong>Resume Workspace</strong>
+          <span>Profile workspace</span>
+        </div>
+      </div>
+
+      <main class="auth-card">
+        <span class="eyebrow">Welcome back</span>
+        <h1>Log in</h1>
+        <p class="subtle">Sign in to manage profiles, evidence, wikis, and future outputs.</p>
+        <form class="form-stack" id="login-form">
+          <label class="field-label" for="login-email">Email</label>
+          <input id="login-email" type="email" autocomplete="email" required>
+          <label class="field-label" for="login-password">Password</label>
+          <input id="login-password" type="password" autocomplete="current-password" required>
+          <button class="primary-button auth-button" type="submit" id="login-button">Log In</button>
+        </form>
+        <p class="auth-meta">New here? <a href="/register">Create an account</a></p>
+      </main>
+    </div>
+
+    <div class="toast-region" id="toast-region" aria-live="polite"></div>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,116 @@
+Metadata-Version: 2.4
+Name: rag-resume-customizer
+Version: 0.1.0
+Summary: MVP1 profile claim engine for evidence-backed resume generation.
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi<1.0.0,>=0.115.0
+Requires-Dist: openai<2.0.0,>=1.30.0
+Requires-Dist: pydantic-settings<3.0.0,>=2.3.0
+Requires-Dist: pypdf<6.0.0,>=4.2.0
+Requires-Dist: python-docx<2.0.0,>=1.1.2
+Requires-Dist: python-multipart<1.0.0,>=0.0.9
+Requires-Dist: sqlalchemy<3.0.0,>=2.0.30
+Requires-Dist: uvicorn<1.0.0,>=0.30.0
+Provides-Extra: dev
+Requires-Dist: pytest<9.0.0,>=8.2.0; extra == "dev"
+
+# RAG Resume Customizer
+
+This repo contains an MVP1 implementation of the resume profile claim engine:
+
+`documents -> evidence chunks -> retrieved context -> pending claims -> approved profile claims`
+
+The focus is the RAG layer, not resume rendering.
+
+## What MVP1 does
+
+- Upload source documents such as `.txt`, `.md`, `.json`, `.pdf`, and `.docx`
+- Extract text and store it as an evidence record
+- Chunk the text for retrieval
+- Retrieve the most claim-rich chunks from the evidence store
+- Extract candidate profile claims from retrieved context
+- Manually approve or reject claims
+- Save approved claims to a canonical profile claim store
+
+## Tech choices
+
+- `FastAPI` for the API
+- `SQLite` for local MVP storage
+- Local lexical retrieval for the RAG layer
+- Optional `OpenAI` claim extraction when `OPENAI_API_KEY` is available
+- Heuristic extraction fallback so the MVP works without an LLM
+
+## Quickstart
+
+1. Create a virtual environment and install dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+2. Start the API:
+
+```bash
+uvicorn app.main:create_app --factory --reload
+```
+
+3. Open the docs:
+
+`http://127.0.0.1:8000/docs`
+
+## Environment variables
+
+All settings are optional for local development.
+
+```bash
+DATABASE_URL=sqlite:///./data/app.db
+UPLOADS_DIR=./data/uploads
+MAX_CHUNK_CHARS=1200
+CHUNK_OVERLAP_CHARS=160
+CLAIM_CONTEXT_TOP_K=6
+ENABLE_LLM_EXTRACTOR=false
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+## Core API flow
+
+### 1. Upload a document
+
+```bash
+curl -X POST "http://127.0.0.1:8000/documents/upload" \
+  -F "file=@sample_resume_source.txt"
+```
+
+### 2. Extract claims from retrieved evidence
+
+```bash
+curl -X POST "http://127.0.0.1:8000/documents/<document_id>/extract-claims" \
+  -H "Content-Type: application/json" \
+  -d '{"focus_areas":["python","rag","ocr"],"max_claims":8}'
+```
+
+### 3. Approve a claim
+
+```bash
+curl -X POST "http://127.0.0.1:8000/claims/<claim_id>/review" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"approved"}'
+```
+
+### 4. View the profile database
+
+```bash
+curl "http://127.0.0.1:8000/profile/claims"
+```
+
+## Suggested next steps after MVP1
+
+- Add OCR and image ingestion
+- Add vector embeddings alongside lexical retrieval
+- Add a claim review UI
+- Add job description matching and explainable bullet selection
+- Add wiki page generation from approved claims
