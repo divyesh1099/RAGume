@@ -32,6 +32,10 @@ class Document(Base):
     profile: Mapped["Profile"] = relationship(back_populates="documents")
     chunks: Mapped[list["Chunk"]] = relationship(back_populates="document", cascade="all, delete-orphan")
     claims: Mapped[list["Claim"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    structured_profile_claims: Mapped[list["StructuredProfileClaim"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
 
 
 class User(Base):
@@ -73,6 +77,10 @@ class Profile(Base):
 
     user: Mapped["User | None"] = relationship(back_populates="profiles")
     documents: Mapped[list["Document"]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+    )
+    structured_profile_claims: Mapped[list["StructuredProfileClaim"]] = relationship(
         back_populates="profile",
         cascade="all, delete-orphan",
     )
@@ -151,6 +159,31 @@ class ProfileClaim(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     source_claim: Mapped["Claim"] = relationship(back_populates="profile_claim")
+
+
+class StructuredProfileClaim(Base):
+    __tablename__ = "structured_profile_claims"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.id"), nullable=False, index=True)
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
+    section: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    field_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    value_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    value_text: Mapped[str] = mapped_column(Text, nullable=False)
+    normalized_value: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
+    source_text: Mapped[str | None] = mapped_column(Text)
+    source_page: Mapped[int | None] = mapped_column(Integer)
+    source_bbox: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    parser_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False, index=True)
+    position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    document: Mapped["Document"] = relationship(back_populates="structured_profile_claims")
+    profile: Mapped["Profile"] = relationship(back_populates="structured_profile_claims")
 
 
 class ProfileGraphNode(Base):

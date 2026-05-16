@@ -629,6 +629,12 @@ select:disabled,
   gap: 12px;
 }
 
+.two-col-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .detail-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -803,6 +809,63 @@ select:disabled,
 
 .profile-editor-grid {
   align-items: start;
+}
+
+.profile-studio-grid {
+  align-items: start;
+}
+
+.studio-section {
+  display: grid;
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.studio-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.studio-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.studio-section-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.studio-claim-list {
+  display: grid;
+  gap: 12px;
+}
+
+.studio-claim-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.studio-claim-preview {
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.compact-grid {
+  gap: 10px;
+}
+
+.compact-form {
+  gap: 10px;
 }
 
 .section-separator {
@@ -1075,7 +1138,8 @@ summary {
   .wiki-grid,
   .wiki-layout,
   .workspace-layout,
-  .detail-grid {
+  .detail-grid,
+  .two-col-grid {
     grid-template-columns: 1fr;
   }
 

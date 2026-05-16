@@ -132,10 +132,71 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
             reparse_payload = reparse_response.json()
             assert reparse_payload["document"]["parse_metadata"]["profile_parser_backend"] == "layout_ner"
 
+            studio_review_response = await client.get(f"/profile/studio/review?profile_id={profile_id}")
+            assert studio_review_response.status_code == 200
+            studio_review = studio_review_response.json()
+            assert studio_review["profile_id"] == profile_id
+            assert studio_review["claims_total"] >= 6
+            assert any(section["section"] == "identity" and section["claims"] for section in studio_review["sections"])
+            assert any(section["section"] == "work_experience" and section["claims"] for section in studio_review["sections"])
+            assert studio_review["extracted_profile"]["profile_mode"] == "auto"
+            assert studio_review["review_preview_profile"]["profile_mode"] == "review"
+            assert len(studio_review["review_preview_profile"]["work_experience"]) >= 1
+
+            identity_section = next(section for section in studio_review["sections"] if section["section"] == "identity")
+            editable_identity_claim = next(claim for claim in identity_section["claims"] if claim["field_name"] == "headline")
+            studio_edit_response = await client.patch(
+                f"/profile/studio/claims/{editable_identity_claim['id']}?profile_id={profile_id}",
+                json={
+                    "status": "edited",
+                    "section": "identity",
+                    "value_json": {"value": "Principal Document AI Engineer"},
+                },
+            )
+            assert studio_edit_response.status_code == 200
+            assert studio_edit_response.json()["status"] == "edited"
+            assert studio_edit_response.json()["value_json"]["value"] == "Principal Document AI Engineer"
+
+            studio_review_after_edit = await client.get(f"/profile/studio/review?profile_id={profile_id}")
+            assert studio_review_after_edit.status_code == 200
+            identity_section_after_edit = next(
+                section for section in studio_review_after_edit.json()["sections"] if section["section"] == "identity"
+            )
+            persisted_identity_claim = next(
+                claim for claim in identity_section_after_edit["claims"] if claim["id"] == editable_identity_claim["id"]
+            )
+            assert persisted_identity_claim["status"] == "edited"
+            assert persisted_identity_claim["value_json"]["value"] == "Principal Document AI Engineer"
+            assert studio_review_after_edit.json()["review_preview_profile"]["identity"]["headline"] == "Principal Document AI Engineer"
+
+            skill_section = next(section for section in studio_review_after_edit.json()["sections"] if section["section"] == "skills")
+            rejected_skill_claim = next(claim for claim in skill_section["claims"] if claim["value_json"]["name"] == "PostgreSQL")
+            reject_skill_response = await client.patch(
+                f"/profile/studio/claims/{rejected_skill_claim['id']}?profile_id={profile_id}",
+                json={"status": "rejected", "section": "skills"},
+            )
+            assert reject_skill_response.status_code == 200
+
+            studio_review_after_reject = await client.get(f"/profile/studio/review?profile_id={profile_id}")
+            assert studio_review_after_reject.status_code == 200
+            assert "PostgreSQL" not in studio_review_after_reject.json()["review_preview_profile"]["skills"]
+
+            accept_all_response = await client.post(f"/profile/studio/claims/accept-all?profile_id={profile_id}")
+            assert accept_all_response.status_code == 200
+            assert accept_all_response.json()["updated"] >= 1
+
+            save_profile_response = await client.post(f"/profile/studio/save?profile_id={profile_id}")
+            assert save_profile_response.status_code == 200
+            saved_profile = save_profile_response.json()
+            assert saved_profile["profile_mode"] == "canonical"
+            assert saved_profile["identity"]["full_name"] == "Divyesh Vishwakarma"
+            assert len(saved_profile["work_experience"]) >= 1
+
             overview_response = await client.get(f"/profile/overview?profile_id={profile_id}")
             assert overview_response.status_code == 200
             overview = overview_response.json()
             assert overview["profile_id"] == profile_id
+            assert overview["profile_mode"] == "canonical"
             assert overview["identity"]["full_name"] == "Divyesh Vishwakarma"
             assert "divyesh@example.com" in overview["identity"]["emails"]
             assert any("98765" in phone for phone in overview["identity"]["phones"])
@@ -181,6 +242,10 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
             reset_overview = reset_response.json()
             assert reset_overview["identity"]["headline"] != "Senior Document AI Engineer"
             assert any("linkedin.com" in link["url"] for link in reset_overview["public_profiles"])
+
+            clear_canonical_response = await client.delete(f"/profile/studio/canonical?profile_id={profile_id}")
+            assert clear_canonical_response.status_code == 200
+            assert clear_canonical_response.json()["profile_mode"] == "auto"
 
             wiki_response = await client.get(f"/profile/wiki?profile_id={profile_id}")
             assert wiki_response.status_code == 200

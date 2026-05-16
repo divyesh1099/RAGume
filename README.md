@@ -2,16 +2,18 @@
 
 This repo contains an MVP1 implementation of the resume profile engine:
 
-`documents -> parsed resume/profile data -> auto-updated profile memory -> wiki / JD context`
+`documents -> extracted profile review -> canonical profile memory -> wiki / JD context`
 
-The current focus is high-quality evidence ingestion and profile extraction, with retrieval and claim tooling still available in the backend for later flows.
+The current focus is high-quality evidence ingestion, fast section-wise review, and saving a clean canonical profile memory, with retrieval and claim tooling still available in the backend for later flows.
 
 ## What MVP1 does
 
 - Upload source documents such as `.txt`, `.md`, `.json`, `.pdf`, and `.docx`
 - Extract text and store it as an evidence record
 - Parse resumes with a layout-aware PDF parser, local resume NER, optional GPT refinement, and validation output
-- Auto-update profile identity, links, skills, education, work experience, and projects from uploaded evidence
+- Turn parser output into reviewable section claims for identity, links, skills, education, work experience, projects, and certifications
+- Review extracted profile sections in Profile Studio, then save a canonical profile memory
+- Auto-update the extracted profile identity, links, skills, education, work experience, and projects from uploaded evidence
 - Chunk the text for retrieval
 - Retrieve the most claim-rich chunks from the evidence store using lexical, structural, and optional embedding signals
 - Extract candidate profile claims from retrieved context
@@ -29,6 +31,7 @@ The current focus is high-quality evidence ingestion and profile extraction, wit
 - `FastAPI` for the API
 - `SQLite` for local MVP storage
 - Hybrid retrieval: lexical BM25 + structural ranking + optional OpenAI embeddings
+- Optional `OpenAI` GPT formatter for section-wise JSON cleanup after local parsing
 - Optional `OpenAI` claim extraction when `OPENAI_API_KEY` is available
 - Heuristic extraction fallback so the MVP works without an LLM
 - Optional GPT resume JSON formatter on top of the local parser
@@ -75,10 +78,10 @@ MAX_CHUNK_CHARS=1200
 CHUNK_OVERLAP_CHARS=160
 CLAIM_CONTEXT_TOP_K=6
 MAX_CLAIMS_PER_RUN=10
-ENABLE_LLM_EXTRACTOR=true
-ENABLE_EMBEDDING_RETRIEVAL=true
+ENABLE_LLM_EXTRACTOR=false
+ENABLE_EMBEDDING_RETRIEVAL=false
 ENABLE_RESUME_NER=true
-ENABLE_RESUME_GPT_FORMATTER=false
+ENABLE_RESUME_GPT_FORMATTER=true
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
@@ -88,6 +91,7 @@ RESUME_NER_CACHE_DIR=./data/model-cache
 RESUME_NER_MAX_TOKENS=512
 ```
 
+If resume cleanup is weaker than expected, first check `ENABLE_RESUME_GPT_FORMATTER=true` in `.env`.
 If the home screen shows `Heuristic mode`, the most common cause is `ENABLE_LLM_EXTRACTOR=false` in `.env`.
 If document cards show embeddings as disabled or failed, check `ENABLE_EMBEDDING_RETRIEVAL` and your `OPENAI_API_KEY`.
 If you want parser-only resume extraction without API refinement, leave `ENABLE_RESUME_GPT_FORMATTER=false`.

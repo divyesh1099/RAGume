@@ -94,6 +94,7 @@ def _default_overview_data() -> dict[str, Any]:
 def _default_profile_container() -> dict[str, Any]:
     return {
         "auto": _default_overview_data(),
+        "canonical": None,
         "manual": {},
     }
 
@@ -251,6 +252,8 @@ def _normalize_profile_container(value: dict[str, Any] | None) -> dict[str, Any]
     container = _default_profile_container()
     raw = value or {}
     container["auto"] = _normalize_overview_data(raw.get("auto"))
+    canonical = raw.get("canonical")
+    container["canonical"] = _normalize_overview_data(canonical) if isinstance(canonical, dict) else None
     manual = raw.get("manual") or {}
     normalized_manual: dict[str, Any] = {}
     if "identity" in manual:
@@ -263,12 +266,39 @@ def _normalize_profile_container(value: dict[str, Any] | None) -> dict[str, Any]
     return container
 
 
-def profile_overview_payload(profile: Profile, user: User | None = None) -> dict[str, Any]:
+def _overview_has_content(value: dict[str, Any] | None) -> bool:
+    if not value:
+        return False
+    identity = value.get("identity") or {}
+    return any(
+        (
+            any(identity.get(field) for field in ("full_name", "headline", "summary", "emails", "phones")),
+            bool(value.get("skills")),
+            bool(value.get("work_experience")),
+            bool(value.get("education")),
+            bool(value.get("projects")),
+            bool(value.get("certifications")),
+        )
+    )
+
+
+def profile_overview_payload(profile: Profile, user: User | None = None, *, source: str = "effective") -> dict[str, Any]:
     container = _normalize_profile_container(profile.profile_data)
     auto = container["auto"]
+    canonical = container.get("canonical")
     manual = container["manual"]
 
-    identity = auto["identity"]
+    if source == "auto":
+        base = auto
+        profile_mode = "auto"
+    elif source == "canonical":
+        base = canonical if _overview_has_content(canonical) else auto
+        profile_mode = "canonical" if _overview_has_content(canonical) else "auto"
+    else:
+        base = canonical if _overview_has_content(canonical) else auto
+        profile_mode = "canonical" if _overview_has_content(canonical) else "auto"
+
+    identity = dict(base["identity"])
     if "identity" in manual:
         manual_identity = manual["identity"]
         for key, value in manual_identity.items():
@@ -277,22 +307,23 @@ def profile_overview_payload(profile: Profile, user: User | None = None) -> dict
     if not identity["full_name"] and user is not None:
         identity["full_name"] = user.full_name
 
-    skills = manual["skills"] if "skills" in manual else auto["skills"]
-    public_profiles = manual["public_profiles"] if "public_profiles" in manual else auto["public_profiles"]
+    skills = manual["skills"] if "skills" in manual else list(base["skills"])
+    public_profiles = manual["public_profiles"] if "public_profiles" in manual else list(base["public_profiles"])
 
     return {
         "profile_id": profile.id,
         "profile_name": profile.name,
+        "profile_mode": profile_mode,
         "identity": identity,
         "skills": skills,
         "public_profiles": public_profiles,
-        "education": auto["education"],
-        "work_experience": auto["work_experience"],
-        "projects": auto["projects"],
-        "certifications": auto["certifications"],
-        "source_documents": auto["source_documents"],
-        "documents_total": len(auto["source_documents"]),
-        "auto_updated_at": auto["auto_updated_at"],
+        "education": list(base["education"]),
+        "work_experience": list(base["work_experience"]),
+        "projects": list(base["projects"]),
+        "certifications": list(base["certifications"]),
+        "source_documents": list(base["source_documents"]),
+        "documents_total": len(base["source_documents"]),
+        "auto_updated_at": base["auto_updated_at"],
         "updated_at": profile.updated_at,
     }
 

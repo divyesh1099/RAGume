@@ -1,6 +1,7 @@
 import datetime as dt
 import shutil
 from pathlib import Path
+from typing import Any
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_session_async, init_db, init_engine, session_scope
-from app.models import Claim, Document, Profile, ProfileClaim, ProfileGraphEdge, ProfileGraphNode, User
+from app.models import Claim, Document, Profile, ProfileClaim, ProfileGraphEdge, ProfileGraphNode, StructuredProfileClaim, User
 from app.schemas import (
     AuthSessionRead,
     ClaimDetailRead,
@@ -43,6 +44,9 @@ from app.schemas import (
     ReviewClaimRequest,
     SearchRequest,
     SearchResponse,
+    StructuredProfileClaimRead,
+    StructuredProfileClaimUpdateRequest,
+    StructuredProfileReviewRead,
     UserRead,
 )
 from app.services.auth import (
@@ -70,6 +74,17 @@ from app.services.profile_memory import (
     rebuild_profile_overview,
     reset_manual_profile_overrides,
     update_manual_profile_overrides,
+)
+from app.services.profile_studio import (
+    accept_all_structured_profile_claims,
+    build_structured_profile_review,
+    clear_canonical_profile,
+    document_structured_claims_need_sync,
+    resolve_structured_profile_claim,
+    save_canonical_profile_from_structured_claims,
+    serialize_structured_profile_claim,
+    sync_document_structured_profile_claims,
+    update_structured_profile_claim,
 )
 from app.services.profile_graph import sync_profile_graph
 from app.services.profiles import (
@@ -114,6 +129,17 @@ def ensure_claim_in_profile(session: Session, claim: Claim | None, profile: Prof
     document = session.get(Document, claim.document_id)
     ensure_document_in_profile(document, profile)
     return claim
+
+
+def ensure_structured_claim_in_profile(
+    session: Session,
+    claim_id: str,
+    profile: Profile,
+) -> StructuredProfileClaim:
+    try:
+        return resolve_structured_profile_claim(session, profile=profile, claim_id=claim_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 def serialize_user(user: User) -> UserRead:
@@ -267,6 +293,7 @@ def auto_process_document(
     parse_metadata["profile_parser_label"] = diagnostics.get("parser_backend_label")
     document.parse_metadata = parse_metadata
     session.flush()
+    sync_document_structured_profile_claims(session, profile, document)
 
     focus_areas = insights.get("skills", [])[:8]
     _, claims, _, claim_warnings = extract_claims_for_document(
@@ -324,6 +351,7 @@ def refresh_document_profile(
     parse_metadata["profile_parser_label"] = diagnostics.get("parser_backend_label")
     document.parse_metadata = parse_metadata
     session.flush()
+    sync_document_structured_profile_claims(session, profile, document)
 
     rebuild_profile_overview(session, profile, settings)
     session.commit()
@@ -613,6 +641,100 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         profile = resolve_profile(session, current_user, profile_id)
         overview = reset_manual_profile_overrides(session, profile)
         return ProfileOverviewRead(**overview)
+
+    @app.get("/profile/studio/review", response_model=StructuredProfileReviewRead)
+    async def get_profile_studio_review(
+        profile_id: str | None = None,
+        current_user: User = Depends(get_current_user),
+        session: Session = Depends(get_session_async),
+        app_settings: Settings = Depends(get_app_settings),
+    ) -> StructuredProfileReviewRead:
+        profile = resolve_profile(session, current_user, profile_id)
+        if not profile.profile_data:
+            rebuild_profile_overview(session, profile, app_settings)
+            session.commit()
+            session.refresh(profile)
+
+        documents = list(
+            session.scalars(
+                select(Document).where(Document.profile_id == profile.id)
+            ).all()
+        )
+        for document in documents:
+            if not document.parse_metadata.get("profile_insights"):
+                refresh_document_profile(
+                    session,
+                    document=document,
+                    profile=profile,
+                    settings=app_settings,
+                )
+            if document_structured_claims_need_sync(session, profile, document):
+                sync_document_structured_profile_claims(session, profile, document)
+        session.commit()
+        session.refresh(profile)
+        return StructuredProfileReviewRead(**build_structured_profile_review(session, profile, current_user))
+
+    @app.patch("/profile/studio/claims/{claim_id}", response_model=StructuredProfileClaimRead)
+    async def update_profile_studio_claim_route(
+        claim_id: str,
+        payload: StructuredProfileClaimUpdateRequest,
+        profile_id: str | None = None,
+        current_user: User = Depends(get_current_user),
+        session: Session = Depends(get_session_async),
+    ) -> StructuredProfileClaimRead:
+        profile = resolve_profile(session, current_user, profile_id)
+        claim = ensure_structured_claim_in_profile(session, claim_id, profile)
+        update_structured_profile_claim(
+            session,
+            claim=claim,
+            status=payload.status,
+            section=payload.section,
+            value_json=payload.value_json,
+        )
+        session.commit()
+        session.refresh(claim)
+        document = session.get(Document, claim.document_id)
+        return StructuredProfileClaimRead(**serialize_structured_profile_claim(claim, document))
+
+    @app.post("/profile/studio/claims/accept-all")
+    async def accept_all_profile_studio_claims_route(
+        profile_id: str | None = None,
+        document_id: str | None = None,
+        current_user: User = Depends(get_current_user),
+        session: Session = Depends(get_session_async),
+    ) -> dict[str, Any]:
+        profile = resolve_profile(session, current_user, profile_id)
+        updated = accept_all_structured_profile_claims(
+            session,
+            profile=profile,
+            document_id=document_id,
+        )
+        session.commit()
+        return {"status": "ok", "updated": updated}
+
+    @app.post("/profile/studio/save", response_model=ProfileOverviewRead)
+    async def save_profile_studio_route(
+        profile_id: str | None = None,
+        current_user: User = Depends(get_current_user),
+        session: Session = Depends(get_session_async),
+    ) -> ProfileOverviewRead:
+        profile = resolve_profile(session, current_user, profile_id)
+        overview = save_canonical_profile_from_structured_claims(session, profile, current_user)
+        session.commit()
+        session.refresh(profile)
+        return ProfileOverviewRead(**overview)
+
+    @app.delete("/profile/studio/canonical", response_model=ProfileOverviewRead)
+    async def clear_profile_studio_canonical_route(
+        profile_id: str | None = None,
+        current_user: User = Depends(get_current_user),
+        session: Session = Depends(get_session_async),
+    ) -> ProfileOverviewRead:
+        profile = resolve_profile(session, current_user, profile_id)
+        clear_canonical_profile(session, profile)
+        session.commit()
+        session.refresh(profile)
+        return ProfileOverviewRead(**profile_overview_payload(profile, current_user, source="auto"))
 
     @app.post("/documents/upload", response_model=DocumentIngestResponse)
     async def upload_document(

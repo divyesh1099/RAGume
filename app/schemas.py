@@ -313,6 +313,7 @@ class ProfileSourceDocumentRead(BaseModel):
 class ProfileOverviewRead(BaseModel):
     profile_id: str
     profile_name: str
+    profile_mode: str = "auto"
     identity: ProfileIdentityRead
     skills: list[str] = Field(default_factory=list)
     public_profiles: list[ProfileLinkRead] = Field(default_factory=list)
@@ -330,6 +331,54 @@ class ProfileOverviewUpdateRequest(BaseModel):
     identity: ProfileIdentityRead | None = None
     skills: list[str] | None = None
     public_profiles: list[ProfileLinkRead] | None = None
+
+
+class StructuredProfileClaimRead(BaseModel):
+    id: str
+    profile_id: str
+    document_id: str
+    document_filename: str | None = None
+    section: str
+    field_name: str
+    value_json: dict = Field(default_factory=dict)
+    value_text: str
+    normalized_value: str
+    source_text: str | None = None
+    source_page: int | None = None
+    source_bbox: dict = Field(default_factory=dict)
+    parser_name: str
+    confidence: float
+    status: str
+    position: int
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+
+class StructuredProfileClaimUpdateRequest(BaseModel):
+    status: Literal["pending", "accepted", "edited", "rejected", "duplicate"] | None = None
+    section: str | None = None
+    value_json: dict | None = None
+
+
+class StructuredProfileReviewSectionRead(BaseModel):
+    section: str
+    label: str
+    claims: list[StructuredProfileClaimRead] = Field(default_factory=list)
+
+
+class StructuredProfileReviewRead(BaseModel):
+    profile_id: str
+    profile_name: str
+    documents_total: int
+    claims_total: int
+    pending_total: int
+    accepted_total: int
+    edited_total: int
+    rejected_total: int
+    sections: list[StructuredProfileReviewSectionRead] = Field(default_factory=list)
+    extracted_profile: ProfileOverviewRead
+    review_preview_profile: ProfileOverviewRead
+    canonical_profile: ProfileOverviewRead
 
 
 class WikiReferenceRead(BaseModel):

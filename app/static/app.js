@@ -10,6 +10,8 @@ const state = {
   managedProfileId: null,
   summary: null,
   profileOverview: null,
+  profileStudioReview: null,
+  profileStudioPreview: null,
   documents: [],
   selectedDocumentId: null,
   claims: [],
@@ -143,6 +145,12 @@ const elements = {
   profileAutoProjects: document.querySelector("#profile-auto-projects"),
   profileAutoCertifications: document.querySelector("#profile-auto-certifications"),
   profileAutoSources: document.querySelector("#profile-auto-sources"),
+  profileReviewMeta: document.querySelector("#profile-review-meta"),
+  profileReviewSections: document.querySelector("#profile-review-sections"),
+  acceptAllReviewButton: document.querySelector("#accept-all-review-button"),
+  saveCanonicalButton: document.querySelector("#save-canonical-button"),
+  resetCanonicalButton: document.querySelector("#reset-canonical-button"),
+  profileMemoryMode: document.querySelector("#profile-memory-mode"),
 
   wikiArticleCount: document.querySelector("#wiki-article-count"),
   wikiSearchInput: document.querySelector("#wiki-search-input"),
@@ -442,6 +450,8 @@ function focusAreas() {
 function resetProfileScopedState() {
   state.summary = null;
   state.profileOverview = null;
+  state.profileStudioReview = null;
+  state.profileStudioPreview = null;
   state.documents = [];
   state.selectedDocumentId = null;
   state.parserComparisons = {};
@@ -973,9 +983,18 @@ function renderSelectedDocumentSummary() {
 }
 
 function renderProfileOverviewSnapshot() {
-  const overview = state.profileOverview;
+  const overview = page === "profile" && state.profileStudioPreview
+    ? state.profileStudioPreview
+    : state.profileOverview;
   if (!overview) {
     return;
+  }
+  if (elements.profileMemoryMode) {
+    elements.profileMemoryMode.textContent = overview.profile_mode === "canonical"
+      ? "This is the saved canonical profile memory that future job outputs should use."
+      : overview.profile_mode === "review"
+        ? "This is the live review preview. Accept, reject, or edit items on the left, then save when it looks right."
+        : "This is the latest extracted profile preview. Save the reviewed sections to lock in a canonical profile.";
   }
 
   const identity = overview.identity || {};
@@ -1622,6 +1641,233 @@ function renderWiki() {
   }
 }
 
+function reviewSectionChoices() {
+  return [
+    { value: "identity", label: "Personal Info" },
+    { value: "skills", label: "Skills" },
+    { value: "work_experience", label: "Experience" },
+    { value: "projects", label: "Projects" },
+    { value: "education", label: "Education" },
+    { value: "certifications", label: "Certifications" },
+    { value: "public_profiles", label: "Links" },
+  ];
+}
+
+function structuredClaimStatusClass(status) {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "accepted") {
+    return "success";
+  }
+  if (normalized === "edited" || normalized === "pending" || normalized === "duplicate") {
+    return "warning";
+  }
+  return "danger";
+}
+
+function structuredClaimFieldMarkup(claim) {
+  const value = claim.value_json || {};
+  if (claim.section === "identity") {
+    return `
+      <label class="field-label">Value</label>
+      <input type="text" data-claim-input="value" value="${escapeHtml(value.value || "")}">
+    `;
+  }
+  if (claim.section === "skills") {
+    return `
+      <label class="field-label">Skill</label>
+      <input type="text" data-claim-input="name" value="${escapeHtml(value.name || "")}">
+    `;
+  }
+  if (claim.section === "public_profiles") {
+    return `
+      <div class="two-col-grid compact-grid">
+        <div>
+          <label class="field-label">Label</label>
+          <input type="text" data-claim-input="label" value="${escapeHtml(value.label || "")}">
+        </div>
+        <div>
+          <label class="field-label">URL</label>
+          <input type="text" data-claim-input="url" value="${escapeHtml(value.url || "")}">
+        </div>
+      </div>
+    `;
+  }
+  if (claim.section === "work_experience") {
+    return `
+      <div class="two-col-grid compact-grid">
+        <div>
+          <label class="field-label">Role</label>
+          <input type="text" data-claim-input="title" value="${escapeHtml(value.title || "")}">
+        </div>
+        <div>
+          <label class="field-label">Company</label>
+          <input type="text" data-claim-input="organization" value="${escapeHtml(value.organization || "")}">
+        </div>
+        <div>
+          <label class="field-label">Start</label>
+          <input type="text" data-claim-input="start_date" value="${escapeHtml(value.start_date || "")}">
+        </div>
+        <div>
+          <label class="field-label">End</label>
+          <input type="text" data-claim-input="end_date" value="${escapeHtml(value.end_date || "")}">
+        </div>
+      </div>
+      <label class="field-label">Location</label>
+      <input type="text" data-claim-input="location" value="${escapeHtml(value.location || "")}">
+      <label class="field-label">Summary</label>
+      <textarea rows="4" data-claim-input="summary">${escapeHtml(value.summary || "")}</textarea>
+      <label class="field-label">Highlights</label>
+      <textarea rows="4" data-claim-input="highlights">${escapeHtml((value.highlights || []).join("\n"))}</textarea>
+    `;
+  }
+  if (claim.section === "projects") {
+    return `
+      <label class="field-label">Project</label>
+      <input type="text" data-claim-input="name" value="${escapeHtml(value.name || "")}">
+      <label class="field-label">Summary</label>
+      <textarea rows="4" data-claim-input="summary">${escapeHtml(value.summary || "")}</textarea>
+      <label class="field-label">Technologies</label>
+      <textarea rows="3" data-claim-input="technologies">${escapeHtml((value.technologies || []).join(", "))}</textarea>
+      <label class="field-label">Links</label>
+      <textarea rows="3" data-claim-input="links">${escapeHtml((value.links || []).join("\n"))}</textarea>
+    `;
+  }
+  if (claim.section === "education") {
+    return `
+      <div class="two-col-grid compact-grid">
+        <div>
+          <label class="field-label">Degree</label>
+          <input type="text" data-claim-input="degree" value="${escapeHtml(value.degree || "")}">
+        </div>
+        <div>
+          <label class="field-label">Institution</label>
+          <input type="text" data-claim-input="institution" value="${escapeHtml(value.institution || "")}">
+        </div>
+        <div>
+          <label class="field-label">Field</label>
+          <input type="text" data-claim-input="field_of_study" value="${escapeHtml(value.field_of_study || "")}">
+        </div>
+        <div>
+          <label class="field-label">Start</label>
+          <input type="text" data-claim-input="start_date" value="${escapeHtml(value.start_date || "")}">
+        </div>
+        <div>
+          <label class="field-label">End</label>
+          <input type="text" data-claim-input="end_date" value="${escapeHtml(value.end_date || "")}">
+        </div>
+      </div>
+      <label class="field-label">Summary</label>
+      <textarea rows="4" data-claim-input="summary">${escapeHtml(value.summary || "")}</textarea>
+    `;
+  }
+  if (claim.section === "certifications") {
+    return `
+      <div class="two-col-grid compact-grid">
+        <div>
+          <label class="field-label">Name</label>
+          <input type="text" data-claim-input="name" value="${escapeHtml(value.name || "")}">
+        </div>
+        <div>
+          <label class="field-label">Issuer</label>
+          <input type="text" data-claim-input="issuer" value="${escapeHtml(value.issuer || "")}">
+        </div>
+        <div>
+          <label class="field-label">Issued</label>
+          <input type="text" data-claim-input="start_date" value="${escapeHtml(value.start_date || "")}">
+        </div>
+        <div>
+          <label class="field-label">Credential ID</label>
+          <input type="text" data-claim-input="credential_id" value="${escapeHtml(value.credential_id || "")}">
+        </div>
+      </div>
+      <label class="field-label">Summary</label>
+      <textarea rows="4" data-claim-input="summary">${escapeHtml(value.summary || "")}</textarea>
+    `;
+  }
+  return `
+    <label class="field-label">Value</label>
+    <textarea rows="4" data-claim-input="raw_json">${escapeHtml(JSON.stringify(value, null, 2))}</textarea>
+  `;
+}
+
+function renderProfileStudioReview() {
+  if (!elements.profileReviewSections) {
+    return;
+  }
+  const review = state.profileStudioReview;
+  if (!review) {
+    elements.profileReviewSections.innerHTML = '<div class="empty-state">Review data will appear here after upload.</div>';
+    if (elements.profileReviewMeta) {
+      elements.profileReviewMeta.textContent = "Parser claims will appear here after upload.";
+    }
+    return;
+  }
+
+  if (elements.profileReviewMeta) {
+    elements.profileReviewMeta.textContent = `${review.claims_total} extracted items · ${review.pending_total} pending · ${review.accepted_total} accepted · ${review.edited_total} edited · ${review.rejected_total} rejected`;
+  }
+
+  const visibleSections = (review.sections || []).filter((section) => (section.claims || []).length);
+  if (!visibleSections.length) {
+    elements.profileReviewSections.innerHTML = '<div class="empty-state">Upload evidence to generate reviewable profile items.</div>';
+    return;
+  }
+
+  elements.profileReviewSections.innerHTML = visibleSections
+    .map((section) => `
+      <section class="studio-section">
+        <div class="studio-section-header">
+          <div>
+            <h3>${escapeHtml(section.label)}</h3>
+            <p class="subtle">${(section.claims || []).length} extracted item${section.claims.length === 1 ? "" : "s"}</p>
+          </div>
+        </div>
+        <div class="studio-claim-list">
+          ${(section.claims || []).map((claim) => `
+            <article class="studio-claim-card" data-claim-id="${claim.id}" data-claim-section="${escapeHtml(claim.section)}">
+              <div class="meta-row">
+                <span class="chip ${structuredClaimStatusClass(claim.status)}">${escapeHtml(claim.status.replaceAll("_", " ").toUpperCase())}</span>
+                <span class="meta-text">${confidencePercent(claim.confidence)}% confidence</span>
+                <span class="meta-text">${escapeHtml(claim.document_filename || "Source document")}</span>
+              </div>
+              <div class="studio-claim-preview">${escapeHtml(claim.value_text || "Untitled item")}</div>
+              ${claim.source_text ? `<p class="subtle">${escapeHtml(claim.source_text)}</p>` : ""}
+              <div class="two-col-grid compact-grid">
+                <div>
+                  <label class="field-label">Section</label>
+                  <select data-claim-section-select>
+                    ${reviewSectionChoices().map((choice) => `
+                      <option value="${escapeHtml(choice.value)}" ${choice.value === claim.section ? "selected" : ""}>
+                        ${escapeHtml(choice.label)}
+                      </option>
+                    `).join("")}
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label">Parser</label>
+                  <input type="text" value="${escapeHtml(claim.parser_name)}" disabled>
+                </div>
+              </div>
+              <div class="form-stack compact-form">
+                ${structuredClaimFieldMarkup(claim)}
+              </div>
+              <div class="inline-row wrap">
+                <button class="secondary-button" type="button" data-claim-action="accept">Accept</button>
+                <button class="secondary-button" type="button" data-claim-action="save">Save edit</button>
+                <button class="secondary-button danger-button" type="button" data-claim-action="reject">Reject</button>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+    `)
+    .join("");
+
+  for (const button of elements.profileReviewSections.querySelectorAll("[data-claim-action]")) {
+    button.addEventListener("click", () => submitStructuredProfileClaim(button));
+  }
+}
+
 function renderProfileEditor() {
   if (!elements.profileOverviewForm || !state.profileOverview) {
     return;
@@ -1724,11 +1970,243 @@ function renderProfileEditor() {
   }
 }
 
+function readStructuredClaimValue(card, section) {
+  const read = (name) => card.querySelector(`[data-claim-input="${name}"]`)?.value.trim() || "";
+  if (section === "identity") {
+    return { value: read("value") };
+  }
+  if (section === "skills") {
+    return { name: read("name") };
+  }
+  if (section === "public_profiles") {
+    return { label: read("label"), url: read("url") };
+  }
+  if (section === "work_experience") {
+    return {
+      title: read("title"),
+      organization: read("organization"),
+      location: read("location"),
+      start_date: read("start_date"),
+      end_date: read("end_date"),
+      summary: read("summary"),
+      highlights: read("highlights").split("\n").map((item) => item.trim()).filter(Boolean),
+      technologies: [],
+      links: [],
+      source_document_ids: [],
+    };
+  }
+  if (section === "projects") {
+    return {
+      name: read("name"),
+      summary: read("summary"),
+      technologies: read("technologies").split(",").map((item) => item.trim()).filter(Boolean),
+      links: read("links").split("\n").map((item) => item.trim()).filter(Boolean),
+      highlights: [],
+      source_document_ids: [],
+    };
+  }
+  if (section === "education") {
+    return {
+      degree: read("degree"),
+      institution: read("institution"),
+      field_of_study: read("field_of_study"),
+      start_date: read("start_date"),
+      end_date: read("end_date"),
+      summary: read("summary"),
+      technologies: [],
+      highlights: [],
+      links: [],
+      source_document_ids: [],
+    };
+  }
+  if (section === "certifications") {
+    return {
+      name: read("name"),
+      issuer: read("issuer"),
+      start_date: read("start_date"),
+      credential_id: read("credential_id"),
+      summary: read("summary"),
+      technologies: [],
+      highlights: [],
+      links: [],
+      source_document_ids: [],
+    };
+  }
+  const rawJson = read("raw_json");
+  try {
+    return rawJson ? JSON.parse(rawJson) : {};
+  } catch {
+    return {};
+  }
+}
+
+function convertStructuredClaimValue(value, fromSection, toSection) {
+  if (fromSection === toSection) {
+    return value;
+  }
+  const primaryText = value.value || value.name || value.title || value.degree || value.organization || value.institution || value.summary || "";
+  if (toSection === "identity") {
+    return { value: primaryText };
+  }
+  if (toSection === "skills") {
+    return { name: primaryText };
+  }
+  if (toSection === "public_profiles") {
+    return {
+      label: value.label || "Link",
+      url: value.url || (value.links || [])[0] || "",
+    };
+  }
+  if (toSection === "projects") {
+    return {
+      name: value.name || value.title || primaryText,
+      summary: value.summary || "",
+      technologies: value.technologies || [],
+      links: value.links || [],
+      highlights: value.highlights || [],
+      source_document_ids: value.source_document_ids || [],
+    };
+  }
+  if (toSection === "work_experience") {
+    return {
+      title: value.title || value.name || primaryText,
+      organization: value.organization || value.issuer || "",
+      location: value.location || "",
+      start_date: value.start_date || "",
+      end_date: value.end_date || "",
+      summary: value.summary || "",
+      highlights: value.highlights || [],
+      technologies: value.technologies || [],
+      links: value.links || [],
+      source_document_ids: value.source_document_ids || [],
+    };
+  }
+  if (toSection === "education") {
+    return {
+      degree: value.degree || value.title || value.name || primaryText,
+      institution: value.institution || value.organization || value.issuer || "",
+      field_of_study: value.field_of_study || "",
+      start_date: value.start_date || "",
+      end_date: value.end_date || "",
+      summary: value.summary || "",
+      technologies: [],
+      highlights: [],
+      links: value.links || [],
+      source_document_ids: value.source_document_ids || [],
+    };
+  }
+  if (toSection === "certifications") {
+    return {
+      name: value.name || value.degree || primaryText,
+      issuer: value.issuer || value.organization || value.institution || "",
+      start_date: value.start_date || "",
+      credential_id: value.credential_id || "",
+      summary: value.summary || "",
+      technologies: [],
+      highlights: [],
+      links: value.links || [],
+      source_document_ids: value.source_document_ids || [],
+    };
+  }
+  return value;
+}
+
+async function submitStructuredProfileClaim(button) {
+  const card = button.closest("[data-claim-id]");
+  if (!card) {
+    return;
+  }
+  const claimId = card.dataset.claimId;
+  const originalSection = card.dataset.claimSection;
+  const nextSection = card.querySelector("[data-claim-section-select]")?.value || card.dataset.claimSection;
+  const action = button.dataset.claimAction;
+  const payload = { section: nextSection };
+  if (action === "reject") {
+    payload.status = "rejected";
+  } else {
+    const originalValue = readStructuredClaimValue(card, originalSection);
+    payload.value_json = convertStructuredClaimValue(originalValue, originalSection, nextSection);
+    payload.status = action === "accept" ? "accepted" : "edited";
+  }
+
+  try {
+    setLoading(button, true, action === "accept" ? "Accepting..." : action === "reject" ? "Rejecting..." : "Saving...");
+    await apiFetch(withProfileQuery(`/profile/studio/claims/${claimId}`), {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    await Promise.all([loadProfileStudioReview(), loadProfileOverview(), loadSummary()]);
+    showToast(action === "reject" ? "Rejected extracted item." : action === "accept" ? "Accepted extracted item." : "Saved review edit.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setLoading(button, false, button.dataset.originalLabel || button.textContent);
+  }
+}
+
+async function acceptAllProfileStudioClaims() {
+  try {
+    setLoading(elements.acceptAllReviewButton, true, "Accepting...");
+    await apiFetch(withProfileQuery("/profile/studio/claims/accept-all"), { method: "POST" });
+    await Promise.all([loadProfileStudioReview(), loadProfileOverview(), loadSummary()]);
+    showToast("Accepted all extracted profile items.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setLoading(elements.acceptAllReviewButton, false, "Accept All");
+  }
+}
+
+async function saveCanonicalProfile() {
+  try {
+    setLoading(elements.saveCanonicalButton, true, "Saving...");
+    state.profileOverview = await apiFetch(withProfileQuery("/profile/studio/save"), { method: "POST" });
+    renderCurrentProfileMeta();
+    renderProfileOverviewSnapshot();
+    await Promise.all([loadProfileStudioReview(), loadSummary()]);
+    showToast("Saved canonical profile memory.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setLoading(elements.saveCanonicalButton, false, "Save Profile");
+  }
+}
+
+async function resetCanonicalProfile() {
+  const confirmed = window.confirm("Reset the saved canonical profile and go back to the latest extracted preview?");
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    setLoading(elements.resetCanonicalButton, true, "Resetting...");
+    state.profileOverview = await apiFetch(withProfileQuery("/profile/studio/canonical"), { method: "DELETE" });
+    renderCurrentProfileMeta();
+    renderProfileOverviewSnapshot();
+    await Promise.all([loadProfileStudioReview(), loadSummary()]);
+    showToast("Returned to the extracted profile preview.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setLoading(elements.resetCanonicalButton, false, "Reset to Extracted");
+  }
+}
+
 async function loadProfileOverview() {
   state.profileOverview = await apiFetch(withProfileQuery("/profile/overview"));
   renderCurrentProfileMeta();
   renderProfileOverviewSnapshot();
   renderProfileEditor();
+}
+
+async function loadProfileStudioReview() {
+  if (!elements.profileReviewSections) {
+    return;
+  }
+  state.profileStudioReview = await apiFetch(withProfileQuery("/profile/studio/review"));
+  state.profileStudioPreview = state.profileStudioReview.review_preview_profile || null;
+  renderProfileStudioReview();
+  renderProfileOverviewSnapshot();
 }
 
 async function loadAuthSession() {
@@ -1826,7 +2304,9 @@ async function refreshWikiPage() {
 }
 
 async function refreshProfilePage() {
-  await Promise.all([loadSummary(), loadProfileOverview()]);
+  await loadSummary();
+  await loadProfileOverview();
+  await loadProfileStudioReview();
 }
 
 async function logout() {
@@ -2351,6 +2831,9 @@ function bindProfilePage() {
   bindSharedWorkspaceActions();
   elements.profileOverviewForm?.addEventListener("submit", saveProfileOverview);
   elements.resetProfileOverviewButton?.addEventListener("click", resetProfileOverviewEdits);
+  elements.acceptAllReviewButton?.addEventListener("click", acceptAllProfileStudioClaims);
+  elements.saveCanonicalButton?.addEventListener("click", saveCanonicalProfile);
+  elements.resetCanonicalButton?.addEventListener("click", resetCanonicalProfile);
 }
 
 function bindAuthPages() {
