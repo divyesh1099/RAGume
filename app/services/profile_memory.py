@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import Document, Profile, User
 from app.services.claim_utils import extract_skills
-from app.services.resume_parser import parse_resume_document
+from app.services.parser_backends import parse_resume_with_backend, resolve_resume_parser_backend
 
 EMAIL_PATTERN = re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b")
 PHONE_PATTERN = re.compile(r"(?:\+?\d[\d\s().-]{7,}\d)")
@@ -710,14 +710,27 @@ def llm_extract_profile_insights(text: str, filename: str, document_id: str, set
 def extract_document_profile_insights(
     document: Document,
     settings: Settings,
+    parser_backend: str | None = None,
 ) -> tuple[dict[str, Any], str, list[str], dict[str, Any]]:
     warnings: list[str] = []
     diagnostics: dict[str, Any] = {}
+    resolved_backend = resolve_resume_parser_backend(
+        settings,
+        requested_backend=parser_backend,
+        document=document,
+    )
 
     try:
-        insights, mode, parser_warnings, diagnostics = parse_resume_document(document, settings)
+        insights, mode, parser_warnings, diagnostics, backend = parse_resume_with_backend(
+            document,
+            settings,
+            requested_backend=parser_backend,
+        )
         warnings.extend(parser_warnings)
+        diagnostics["parser_backend"] = backend
         return _normalize_overview_data(insights), mode, warnings, diagnostics
+    except ValueError:
+        raise
     except Exception as exc:
         warnings.append(
             f"Structured resume parser failed with {exc.__class__.__name__}; falling back to the legacy extractor."
@@ -735,6 +748,7 @@ def extract_document_profile_insights(
             )
             mode = "llm"
             diagnostics = {
+                "parser_backend": resolved_backend,
                 "layout": {"parser": document.parse_metadata.get("parser")},
                 "validation": {
                     "score": 55,
@@ -754,6 +768,7 @@ def extract_document_profile_insights(
         document_id=document.id,
     )
     diagnostics = {
+        "parser_backend": resolved_backend,
         "layout": {"parser": document.parse_metadata.get("parser")},
         "validation": {
             "score": 40,

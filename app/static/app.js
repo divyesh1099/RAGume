@@ -4,6 +4,9 @@ const state = {
   user: null,
   profiles: [],
   selectedProfileId: window.localStorage.getItem("resume_workspace_profile_id") || null,
+  parserBackends: [],
+  selectedParserBackend: window.localStorage.getItem("resume_workspace_parser_backend") || null,
+  parserComparisons: {},
   managedProfileId: null,
   summary: null,
   profileOverview: null,
@@ -22,6 +25,14 @@ const state = {
 };
 
 const presetFocusAreas = ["python", "rag", "ocr", "document ai", "backend", "llm", "ml", "automation"];
+const AUTO_PARSER_BACKEND = {
+  id: "auto",
+  label: "Auto (Recommended)",
+  description: "Uses Docling Structured for PDFs and images when available, and Layout + NER for text-like uploads.",
+  available: true,
+  is_default: true,
+};
+const parserRichMediaSuffixes = new Set(["pdf", "png", "jpg", "jpeg", "tif", "tiff", "bmp", "webp"]);
 const jdStopwords = new Set([
   "about", "also", "and", "are", "build", "candidate", "company", "data", "experience", "from",
   "have", "help", "into", "looking", "must", "need", "our", "role", "team", "that", "their",
@@ -67,13 +78,17 @@ const elements = {
   fileInput: document.querySelector("#file-input"),
   selectedFileLabel: document.querySelector("#selected-file-label"),
   uploadButton: document.querySelector("#upload-button"),
+  parserBackendSelect: document.querySelector("#parser-backend-select"),
+  parserBackendHint: document.querySelector("#parser-backend-hint"),
   dropzone: document.querySelector("#dropzone"),
   uploadStatus: document.querySelector("#upload-status"),
   selectedDocumentSummary: document.querySelector("#selected-document-summary"),
   selectedDocumentValidation: document.querySelector("#selected-document-validation"),
   selectedDocumentStructuredOutput: document.querySelector("#selected-document-structured-output"),
+  selectedDocumentParserComparison: document.querySelector("#selected-document-parser-comparison"),
   deleteDocumentButton: document.querySelector("#delete-document-button"),
   reparseDocumentButton: document.querySelector("#reparse-document-button"),
+  compareParsersButton: document.querySelector("#compare-parsers-button"),
   selectedDocumentSignals: document.querySelector("#selected-document-signals"),
   selectedDocumentHighlights: document.querySelector("#selected-document-highlights"),
   evidenceEmptyState: document.querySelector("#evidence-empty-state"),
@@ -257,13 +272,145 @@ function rememberSelectedProfile(profileId) {
   window.localStorage.removeItem("resume_workspace_profile_id");
 }
 
-function withProfileQuery(path) {
-  const profile = currentProfile();
-  if (!profile) {
-    return path;
+function rememberSelectedParserBackend(backendId) {
+  state.selectedParserBackend = backendId;
+  if (backendId) {
+    window.localStorage.setItem("resume_workspace_parser_backend", backendId);
+    return;
   }
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}profile_id=${encodeURIComponent(profile.id)}`;
+  window.localStorage.removeItem("resume_workspace_parser_backend");
+}
+
+function parserBackendMeta(backendId) {
+  if (backendId === AUTO_PARSER_BACKEND.id) {
+    return AUTO_PARSER_BACKEND;
+  }
+  return state.parserBackends.find((item) => item.id === backendId) || null;
+}
+
+function defaultParserBackendId() {
+  return AUTO_PARSER_BACKEND.id;
+}
+
+function ensureSelectedParserBackend() {
+  if (
+    state.selectedParserBackend
+    && (
+      state.selectedParserBackend === AUTO_PARSER_BACKEND.id
+      || parserBackendMeta(state.selectedParserBackend)?.available
+    )
+  ) {
+    return state.selectedParserBackend;
+  }
+  const nextBackend = defaultParserBackendId();
+  rememberSelectedParserBackend(nextBackend);
+  return nextBackend;
+}
+
+function selectedUploadFile() {
+  return elements.fileInput?.files?.[0] || null;
+}
+
+function parserTargetLooksLikePdfOrImage({ filename = "", mimeType = "", parserName = "" } = {}) {
+  const normalizedFilename = String(filename).toLowerCase();
+  const suffix = normalizedFilename.includes(".") ? normalizedFilename.split(".").pop() : "";
+  const normalizedMime = String(mimeType).toLowerCase();
+  const normalizedParser = String(parserName).toLowerCase();
+  return parserRichMediaSuffixes.has(suffix)
+    || normalizedMime === "application/pdf"
+    || normalizedMime.startsWith("image/")
+    || normalizedParser.includes("pdf")
+    || normalizedParser.includes("ocr");
+}
+
+function recommendedParserBackendIdForTarget({ filename = "", mimeType = "", parserName = "" } = {}) {
+  const doclingAvailable = parserBackendMeta("docling_structured")?.available;
+  if (doclingAvailable && parserTargetLooksLikePdfOrImage({ filename, mimeType, parserName })) {
+    return "docling_structured";
+  }
+  return "layout_ner";
+}
+
+function parserRecommendationContext(document = getSelectedDocument()) {
+  const file = selectedUploadFile();
+  if (file) {
+    return {
+      scope: "file",
+      label: file.name,
+      filename: file.name,
+      mimeType: file.type,
+      parserName: "",
+    };
+  }
+  if (document) {
+    return {
+      scope: "document",
+      label: document.filename,
+      filename: document.filename,
+      mimeType: document.mime_type,
+      parserName: document.parse_metadata?.parser || "",
+    };
+  }
+  return {
+    scope: "general",
+    label: "",
+    filename: "",
+    mimeType: "",
+    parserName: "",
+  };
+}
+
+function recommendedParserBackendId(document = getSelectedDocument()) {
+  return recommendedParserBackendIdForTarget(parserRecommendationContext(document));
+}
+
+function effectiveParserBackendId(document = getSelectedDocument()) {
+  const selectedBackendId = ensureSelectedParserBackend();
+  if (selectedBackendId !== AUTO_PARSER_BACKEND.id) {
+    return selectedBackendId;
+  }
+  return recommendedParserBackendId(document);
+}
+
+function parserRecommendationHint(document = getSelectedDocument()) {
+  const selectedBackendId = ensureSelectedParserBackend();
+  if (selectedBackendId !== AUTO_PARSER_BACKEND.id) {
+    const selectedBackend = parserBackendMeta(selectedBackendId);
+    return selectedBackend
+      ? `${selectedBackend.label}: ${selectedBackend.description}`
+      : "Choose how resume-like evidence should be structured before it updates the profile.";
+  }
+
+  const context = parserRecommendationContext(document);
+  const recommendedBackend = parserBackendMeta(recommendedParserBackendId(document));
+  const targetLabel = context.scope === "file"
+    ? `${context.label} will use`
+    : context.scope === "document"
+      ? `${context.label} would use`
+      : "New uploads use";
+  const reason = recommendedBackend?.id === "docling_structured"
+    ? "because it looks like a PDF or image-heavy source."
+    : "because it looks text-like and the lighter parser is faster."
+  return `${AUTO_PARSER_BACKEND.label}: ${targetLabel} ${recommendedBackend?.label || "the recommended parser"} ${reason}`;
+}
+
+function currentParserBackendForDocument(document = getSelectedDocument()) {
+  const backendId = document?.parse_metadata?.profile_parser_backend;
+  return backendId && parserBackendMeta(backendId) ? backendId : null;
+}
+
+function withProfileQuery(path, extraParams = {}) {
+  const url = new URL(path, window.location.origin);
+  const profile = currentProfile();
+  if (profile) {
+    url.searchParams.set("profile_id", profile.id);
+  }
+  for (const [key, value] of Object.entries(extraParams)) {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, String(value));
+    }
+  }
+  return `${url.pathname}${url.search}`;
 }
 
 function getSelectedDocument() {
@@ -297,6 +444,7 @@ function resetProfileScopedState() {
   state.profileOverview = null;
   state.documents = [];
   state.selectedDocumentId = null;
+  state.parserComparisons = {};
   state.claims = [];
   state.approvedClaims = [];
   state.profileGraph = { nodes: [], edges: [] };
@@ -337,6 +485,32 @@ function renderCurrentProfileMeta() {
   }
 }
 
+function renderParserBackendControls() {
+  if (!elements.parserBackendSelect) {
+    return;
+  }
+
+  ensureSelectedParserBackend();
+  const options = [
+    AUTO_PARSER_BACKEND,
+    ...(state.parserBackends.length
+      ? state.parserBackends
+      : [{ id: "layout_ner", label: "Layout + NER", description: "Default parser.", available: true, is_default: true }]),
+  ];
+
+  elements.parserBackendSelect.innerHTML = options
+    .map((backend) => `
+      <option value="${escapeHtml(backend.id)}" ${backend.id === state.selectedParserBackend ? "selected" : ""} ${backend.available ? "" : "disabled"}>
+        ${escapeHtml(backend.label)}${backend.id !== AUTO_PARSER_BACKEND.id && backend.is_default ? " (Default)" : ""}${backend.available ? "" : " (Unavailable)"}
+      </option>
+    `)
+    .join("");
+
+  if (elements.parserBackendHint) {
+    elements.parserBackendHint.textContent = parserRecommendationHint();
+  }
+}
+
 function renderSummary() {
   if (!state.summary) {
     return;
@@ -354,14 +528,20 @@ function renderSummary() {
     elements.metricGraph.textContent = String(state.summary.skills_total);
   }
   if (elements.engineSummary) {
+    const selectedBackendId = ensureSelectedParserBackend();
+    const effectiveBackend = parserBackendMeta(effectiveParserBackendId()) || parserBackendMeta(state.summary.parser_backend);
+    const parserLabel = effectiveBackend?.label || "local parser";
     const extractorMode = state.summary.extractor_mode || "";
-    const extractorText = extractorMode === "openresume_ner_gpt"
-      ? "Uploads are being structured automatically with the local parser, resume NER, and GPT refinement."
-      : extractorMode === "openresume_ner_local"
-        ? "Uploads are being structured automatically with the local parser and resume NER."
+    const parserLead = selectedBackendId === AUTO_PARSER_BACKEND.id
+      ? `Auto parser selection is on. The current source would use ${parserLabel}.`
+      : `${parserLabel} is selected for uploads and re-runs.`;
+    const extractorText = extractorMode.endsWith("_gpt")
+      ? `${parserLead} Resume NER and GPT refinement are enabled.`
+      : extractorMode.includes("_ner")
+        ? `${parserLead} Resume NER is enabled.`
         : state.summary.llm_available
-          ? `Uploads are being structured automatically with ${state.summary.openai_model}.`
-          : "Uploads are being structured automatically with the local parser.";
+          ? `${parserLead} ${state.summary.openai_model} is available as fallback extraction.`
+          : parserLead;
     const retrievalText = state.summary.embedding_retrieval_available
       ? ` Retrieval is enhanced with ${state.summary.openai_embedding_model}.`
       : " Retrieval currently uses lexical and structural matching only.";
@@ -379,6 +559,14 @@ function selectedDocumentValidation() {
 
 function selectedDocumentDiagnostics() {
   return getSelectedDocument()?.parse_metadata?.profile_parser_diagnostics || null;
+}
+
+function selectedDocumentParserComparison() {
+  const document = getSelectedDocument();
+  if (!document) {
+    return null;
+  }
+  return state.parserComparisons[document.id] || null;
 }
 
 function assessmentChip(assessment) {
@@ -410,6 +598,86 @@ function fieldPreviewCard(title, items) {
         ? items.map((item) => `<div class="detail-line">${escapeHtml(item)}</div>`).join("")
         : '<div class="empty-inline">No data detected.</div>'}
     </article>
+  `;
+}
+
+function comparisonPreviewLines(run) {
+  const identity = run.insights?.identity || {};
+  const summary = run.summary || {};
+  const lines = [
+    identity.full_name ? `Name: ${identity.full_name}` : null,
+    identity.headline ? `Headline: ${identity.headline}` : null,
+    (identity.emails || []).length ? `Emails: ${identity.emails.join(", ")}` : null,
+    (identity.phones || []).length ? `Phones: ${identity.phones.join(", ")}` : null,
+    summary.work_titles?.length ? `Work: ${summary.work_titles.slice(0, 2).join(" • ")}` : null,
+    summary.project_names?.length ? `Projects: ${summary.project_names.slice(0, 3).join(", ")}` : null,
+    summary.top_skills?.length ? `Skills: ${summary.top_skills.slice(0, 6).join(", ")}` : null,
+  ].filter(Boolean);
+  return lines.slice(0, 6);
+}
+
+function renderParserComparison() {
+  if (!elements.selectedDocumentParserComparison) {
+    return;
+  }
+  const document = getSelectedDocument();
+  if (!document) {
+    elements.selectedDocumentParserComparison.innerHTML = '<div class="empty-state">Select a document to compare parser outputs.</div>';
+    if (elements.compareParsersButton) {
+      elements.compareParsersButton.disabled = true;
+    }
+    return;
+  }
+
+  if (elements.compareParsersButton) {
+    elements.compareParsersButton.disabled = false;
+  }
+
+  const comparison = selectedDocumentParserComparison();
+  if (!comparison) {
+    elements.selectedDocumentParserComparison.innerHTML = '<div class="empty-state">Run parser comparison to inspect side-by-side extraction quality for this source.</div>';
+    return;
+  }
+
+  elements.selectedDocumentParserComparison.innerHTML = `
+    <div class="comparison-grid">
+      ${comparison.comparisons.map((run) => {
+        const validation = run.diagnostics?.validation || {};
+        const lines = comparisonPreviewLines(run);
+        const counts = run.summary || {};
+        const isActive = run.backend === comparison.active_backend;
+        return `
+          <article class="detail-card parser-run-card${isActive ? " is-active" : ""}">
+            <div class="meta-row">
+              <strong>${escapeHtml(run.label)}</strong>
+              ${isActive ? '<span class="chip success">Active</span>' : '<span class="chip">Compare</span>'}
+              ${validation.status ? `<span class="chip ${statusChipClass(validation.status)}">${escapeHtml(String(validation.status).replaceAll("_", " ").toUpperCase())}</span>` : ""}
+            </div>
+            <div class="subtle">${escapeHtml(run.description || "")}</div>
+            ${run.error
+              ? `<div class="detail-line warning-line">${escapeHtml(run.error)}</div>`
+              : `
+                <div class="tag-row">
+                  <span class="tag">Work · ${escapeHtml(String(counts.work_count || 0))}</span>
+                  <span class="tag">Projects · ${escapeHtml(String(counts.project_count || 0))}</span>
+                  <span class="tag">Education · ${escapeHtml(String(counts.education_count || 0))}</span>
+                  <span class="tag">Skills · ${escapeHtml(String(counts.skill_count || 0))}</span>
+                </div>
+                <div class="stack-list compact-stack">
+                  ${lines.length
+                    ? lines.map((line) => `<div class="detail-line">${escapeHtml(line)}</div>`).join("")
+                    : '<div class="empty-inline">No structured fields returned.</div>'}
+                </div>
+                <div class="stack-list compact-stack">
+                  ${(run.warnings || []).length
+                    ? run.warnings.slice(0, 3).map((warning) => `<div class="detail-line warning-line">${escapeHtml(warning)}</div>`).join("")
+                    : '<div class="detail-line">No major parser warnings recorded.</div>'}
+                </div>
+              `}
+          </article>
+        `;
+      }).join("")}
+    </div>
   `;
 }
 
@@ -533,6 +801,7 @@ function renderSelectedDocumentSummary() {
   if (!elements.selectedDocumentSummary) {
     return;
   }
+  renderParserBackendControls();
   const document = getSelectedDocument();
   if (!document) {
     elements.selectedDocumentSummary.innerHTML = '<div class="empty-state">Pick a document to inspect it here.</div>';
@@ -554,11 +823,14 @@ function renderSelectedDocumentSummary() {
     if (elements.selectedDocumentStructuredOutput) {
       elements.selectedDocumentStructuredOutput.innerHTML = '<div class="empty-state">Structured extraction fields will appear here after upload.</div>';
     }
+    renderParserComparison();
     return;
   }
 
   const pageCount = document.parse_metadata?.page_count;
   const paragraphCount = document.parse_metadata?.paragraph_count;
+  const activeBackendId = currentParserBackendForDocument(document);
+  const activeBackend = parserBackendMeta(activeBackendId);
   const parseUnit = pageCount
     ? `${pageCount} pages`
     : paragraphCount
@@ -569,6 +841,7 @@ function renderSelectedDocumentSummary() {
     <div class="selected-evidence-name">${escapeHtml(document.filename)}</div>
     <div class="selected-evidence-meta">${escapeHtml(parseUnit)} · ${escapeHtml(document.mime_type || "unknown type")}</div>
     <div class="selected-evidence-meta">${escapeHtml(formatDate(document.created_at))}</div>
+    <div class="selected-evidence-meta">Parser backend: ${escapeHtml(activeBackend?.label || document.parse_metadata?.profile_parser_backend || "default")}</div>
     <div class="selected-evidence-meta">Structuring mode: ${escapeHtml(document.parse_metadata?.profile_extraction_mode || "auto")}</div>
     <div class="selected-evidence-meta">Embeddings: ${escapeHtml(document.parse_metadata?.embedding_status || "not indexed")}</div>
   `;
@@ -629,6 +902,7 @@ function renderSelectedDocumentSummary() {
           <span class="chip">${escapeHtml(document.parse_metadata?.profile_extraction_mode || "parser")}</span>
         </div>
         <div class="meta-row">
+          <span class="meta-text">${escapeHtml(parserBackendMeta(document.parse_metadata?.profile_parser_backend)?.label || document.parse_metadata?.profile_parser_backend || "parser backend")}</span>
           <span class="meta-text">${escapeHtml(layout.parser || document.parse_metadata?.parser || "parser")}</span>
           <span class="meta-text">${escapeHtml(String(layout.page_count || document.parse_metadata?.page_count || 0))} pages</span>
           <span class="meta-text">${escapeHtml(String(layout.block_count || document.parse_metadata?.block_count || 0))} blocks</span>
@@ -694,6 +968,8 @@ function renderSelectedDocumentSummary() {
       </div>
     `;
   }
+
+  renderParserComparison();
 }
 
 function renderProfileOverviewSnapshot() {
@@ -810,12 +1086,14 @@ function renderDocuments() {
     .map((document) => {
       const pageCount = document.parse_metadata?.page_count;
       const parser = document.parse_metadata?.parser || "parser";
+      const parserBackend = parserBackendMeta(document.parse_metadata?.profile_parser_backend);
       const embeddingStatus = document.parse_metadata?.embedding_status || "not indexed";
-      const metaLine = pageCount
-        ? `${pageCount} pages · ${parser}`
+      const parseUnit = pageCount
+        ? `${pageCount} pages`
         : document.parse_metadata?.paragraph_count
-          ? `${document.parse_metadata.paragraph_count} paragraphs · ${parser}`
+          ? `${document.parse_metadata.paragraph_count} paragraphs`
           : parser;
+      const metaLine = `${parserBackend?.label || document.parse_metadata?.profile_parser_backend || "Parser"} · ${parseUnit}`;
 
       return `
         <article class="document-card${document.id === state.selectedDocumentId ? " is-active" : ""}" data-document-id="${document.id}">
@@ -834,6 +1112,7 @@ function renderDocuments() {
     card.addEventListener("click", () => {
       state.selectedDocumentId = card.dataset.documentId;
       renderDocuments();
+      renderParserBackendControls();
       renderSelectedDocumentSummary();
     });
   }
@@ -1470,6 +1749,16 @@ async function loadProfiles() {
   renderProfileSelector();
 }
 
+async function loadResumeParsers() {
+  if (!elements.parserBackendSelect && page !== "evidence") {
+    return;
+  }
+  state.parserBackends = await apiFetch("/resume-parsers");
+  ensureSelectedParserBackend();
+  renderParserBackendControls();
+  renderSummary();
+}
+
 async function loadSummary() {
   state.summary = await apiFetch(withProfileQuery("/dashboard/summary"));
   renderSummary();
@@ -1477,6 +1766,11 @@ async function loadSummary() {
 
 async function loadDocuments() {
   state.documents = await apiFetch(withProfileQuery("/documents"));
+  state.parserComparisons = Object.fromEntries(
+    Object.entries(state.parserComparisons).filter(([documentId]) =>
+      state.documents.some((document) => document.id === documentId)
+    )
+  );
   if (!state.selectedDocumentId && state.documents.length) {
     state.selectedDocumentId = state.documents[0].id;
   }
@@ -1518,7 +1812,7 @@ async function loadWiki() {
 }
 
 async function refreshEvidencePage() {
-  await Promise.all([loadSummary(), loadDocuments(), loadProfileOverview()]);
+  await Promise.all([loadResumeParsers(), loadSummary(), loadDocuments(), loadProfileOverview()]);
   renderSelectedDocumentSummary();
 }
 
@@ -1697,6 +1991,7 @@ async function uploadEvidence(event) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("profile_id", profile.id);
+  formData.append("parser_backend", ensureSelectedParserBackend());
 
   try {
     setLoading(elements.uploadButton, true, "Uploading...");
@@ -1704,6 +1999,7 @@ async function uploadEvidence(event) {
       method: "POST",
       body: formData,
     });
+    delete state.parserComparisons[response.document.id];
     state.selectedDocumentId = response.document.id;
     if (elements.fileInput) {
       elements.fileInput.value = "";
@@ -1791,6 +2087,7 @@ async function deleteSelectedDocument() {
   try {
     setLoading(elements.deleteDocumentButton, true, "Deleting...");
     await apiFetch(withProfileQuery(`/documents/${document.id}`), { method: "DELETE" });
+    delete state.parserComparisons[document.id];
     if (state.selectedDocumentId === document.id) {
       state.selectedDocumentId = null;
     }
@@ -1815,9 +2112,12 @@ async function reparseSelectedDocument() {
 
   try {
     setLoading(elements.reparseDocumentButton, true, "Re-running...");
-    const response = await apiFetch(withProfileQuery(`/documents/${document.id}/reparse`), {
+    const response = await apiFetch(withProfileQuery(`/documents/${document.id}/reparse`, {
+      parser_backend: ensureSelectedParserBackend(),
+    }), {
       method: "POST",
     });
+    delete state.parserComparisons[document.id];
     state.selectedDocumentId = response.document.id;
     await refreshEvidencePage();
     if (elements.uploadStatus) {
@@ -1831,6 +2131,26 @@ async function reparseSelectedDocument() {
     showToast(error.message, "error");
   } finally {
     setLoading(elements.reparseDocumentButton, false, "Re-run Parser");
+  }
+}
+
+async function compareSelectedDocumentParsers() {
+  const document = getSelectedDocument();
+  if (!document) {
+    showToast("Select a document before comparing parsers.", "error");
+    return;
+  }
+
+  try {
+    setLoading(elements.compareParsersButton, true, "Comparing...");
+    const response = await apiFetch(withProfileQuery(`/documents/${document.id}/parser-comparisons`));
+    state.parserComparisons[document.id] = response;
+    renderParserComparison();
+    showToast(`Compared ${response.comparisons.length} parser outputs for ${document.filename}.`);
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setLoading(elements.compareParsersButton, false, "Compare Parsers");
   }
 }
 
@@ -1952,6 +2272,12 @@ function bindEvidencePage() {
   elements.uploadForm?.addEventListener("submit", uploadEvidence);
   elements.deleteDocumentButton?.addEventListener("click", deleteSelectedDocument);
   elements.reparseDocumentButton?.addEventListener("click", reparseSelectedDocument);
+  elements.compareParsersButton?.addEventListener("click", compareSelectedDocumentParsers);
+  elements.parserBackendSelect?.addEventListener("change", () => {
+    rememberSelectedParserBackend(elements.parserBackendSelect.value);
+    renderParserBackendControls();
+    renderSummary();
+  });
 
   if (elements.fileInput) {
     elements.fileInput.addEventListener("change", () => {
@@ -1959,6 +2285,8 @@ function bindEvidencePage() {
       if (elements.selectedFileLabel) {
         elements.selectedFileLabel.textContent = file ? `${file.name} is ready to upload.` : "Nothing selected yet.";
       }
+      renderParserBackendControls();
+      renderSummary();
     });
   }
   if (elements.dropzone) {
@@ -1981,6 +2309,8 @@ function bindEvidencePage() {
         if (elements.selectedFileLabel) {
           elements.selectedFileLabel.textContent = `${files[0].name} is ready to upload.`;
         }
+        renderParserBackendControls();
+        renderSummary();
       }
     });
   }

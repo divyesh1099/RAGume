@@ -37,6 +37,9 @@ from app.schemas import (
     ProfileUpdateRequest,
     ProfileWikiRead,
     RegisterRequest,
+    ResumeParserBackendRead,
+    ResumeParserComparisonRunRead,
+    ResumeParserComparisonResponse,
     ReviewClaimRequest,
     SearchRequest,
     SearchResponse,
@@ -55,6 +58,12 @@ from app.services.claim_utils import assess_claim_evidence, extract_claim_entiti
 from app.services.documents import cleanup_document_storage, delete_document_evidence, ingest_uploaded_document
 from app.services.embeddings import embedding_available
 from app.services.job_descriptions import parse_uploaded_job_description
+from app.services.parser_backends import (
+    compare_resume_parser_backends,
+    resolve_resume_parser_backend,
+    resume_parser_backends,
+    validate_resume_parser_choice,
+)
 from app.services.profile_memory import (
     extract_document_profile_insights,
     profile_overview_payload,
@@ -241,14 +250,21 @@ def auto_process_document(
     document: Document,
     profile: Profile,
     settings: Settings,
+    parser_backend: str | None = None,
 ) -> tuple[int, list[str], list[str]]:
     parse_metadata = dict(document.parse_metadata or {})
-    insights, profile_mode, profile_warnings, diagnostics = extract_document_profile_insights(document, settings)
+    insights, profile_mode, profile_warnings, diagnostics = extract_document_profile_insights(
+        document,
+        settings,
+        parser_backend=parser_backend,
+    )
     parse_metadata["profile_insights"] = insights
     parse_metadata["profile_extraction_mode"] = profile_mode
     parse_metadata["profile_extraction_warnings"] = profile_warnings
     parse_metadata["profile_validation"] = diagnostics.get("validation", {})
     parse_metadata["profile_parser_diagnostics"] = diagnostics
+    parse_metadata["profile_parser_backend"] = diagnostics.get("parser_backend")
+    parse_metadata["profile_parser_label"] = diagnostics.get("parser_backend_label")
     document.parse_metadata = parse_metadata
     session.flush()
 
@@ -291,14 +307,21 @@ def refresh_document_profile(
     document: Document,
     profile: Profile,
     settings: Settings,
+    parser_backend: str | None = None,
 ) -> tuple[list[str], list[str]]:
     parse_metadata = dict(document.parse_metadata or {})
-    insights, profile_mode, profile_warnings, diagnostics = extract_document_profile_insights(document, settings)
+    insights, profile_mode, profile_warnings, diagnostics = extract_document_profile_insights(
+        document,
+        settings,
+        parser_backend=parser_backend,
+    )
     parse_metadata["profile_insights"] = insights
     parse_metadata["profile_extraction_mode"] = profile_mode
     parse_metadata["profile_extraction_warnings"] = profile_warnings
     parse_metadata["profile_validation"] = diagnostics.get("validation", {})
     parse_metadata["profile_parser_diagnostics"] = diagnostics
+    parse_metadata["profile_parser_backend"] = diagnostics.get("parser_backend")
+    parse_metadata["profile_parser_label"] = diagnostics.get("parser_backend_label")
     document.parse_metadata = parse_metadata
     session.flush()
 
@@ -437,6 +460,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             parse_metadata=parse_metadata,
         )
 
+    @app.get("/resume-parsers", response_model=list[ResumeParserBackendRead])
+    async def list_resume_parsers(
+        current_user: User = Depends(get_current_user),
+    ) -> list[ResumeParserBackendRead]:
+        del current_user
+        return [ResumeParserBackendRead(**item) for item in resume_parser_backends(resolved_settings)]
+
     @app.get("/profiles", response_model=list[ProfileRead])
     async def list_profiles(
         current_user: User = Depends(get_current_user),
@@ -513,10 +543,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             select(func.count(ProfileGraphEdge.id)).where(ProfileGraphEdge.profile_id == profile.id)
         ) or 0
         overview = profile_overview_payload(profile, current_user)
+        parser_backend = resolve_resume_parser_backend(resolved_settings)
         if resolved_settings.enable_resume_gpt_formatter and resolved_settings.openai_api_key:
-            extractor_mode = "openresume_ner_gpt"
+            extractor_mode = "docling_ner_gpt" if parser_backend == "docling_structured" else "openresume_ner_gpt"
         elif resolved_settings.enable_resume_ner:
-            extractor_mode = "openresume_ner_local"
+            extractor_mode = "docling_ner_local" if parser_backend == "docling_structured" else "openresume_ner_local"
         elif llm_available(resolved_settings):
             extractor_mode = "llm"
         else:
@@ -536,6 +567,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             projects_total=len(overview["projects"]),
             llm_available=llm_available(resolved_settings),
             embedding_retrieval_available=embedding_available(resolved_settings),
+            parser_backend=parser_backend,
             extractor_mode=extractor_mode,
             openai_model=resolved_settings.openai_model if llm_available(resolved_settings) else None,
             openai_embedding_model=resolved_settings.openai_embedding_model if embedding_available(resolved_settings) else None,
@@ -586,17 +618,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def upload_document(
         file: UploadFile,
         profile_id: str | None = Form(None),
+        parser_backend: str | None = Form(None),
         current_user: User = Depends(get_current_user),
         session: Session = Depends(get_session_async),
         app_settings: Settings = Depends(get_app_settings),
     ) -> DocumentIngestResponse:
         profile = resolve_profile(session, current_user, profile_id)
+        try:
+            parser_choice = validate_resume_parser_choice(app_settings, parser_backend)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         document, chunks_created = ingest_uploaded_document(session, file, app_settings, profile)
         auto_approved_claims, auto_profile_sections, warnings = auto_process_document(
             session,
             document=document,
             profile=profile,
             settings=app_settings,
+            parser_backend=parser_choice,
         )
         return DocumentIngestResponse(
             document=document,
@@ -625,22 +663,46 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def reparse_document_route(
         document_id: str,
         profile_id: str | None = None,
+        parser_backend: str | None = None,
         current_user: User = Depends(get_current_user),
         session: Session = Depends(get_session_async),
         app_settings: Settings = Depends(get_app_settings),
     ) -> DocumentReparseResponse:
         profile = resolve_profile(session, current_user, profile_id)
         document = ensure_document_in_profile(session.get(Document, document_id), profile)
+        try:
+            parser_choice = validate_resume_parser_choice(app_settings, parser_backend)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         auto_profile_sections, warnings = refresh_document_profile(
             session,
             document=document,
             profile=profile,
             settings=app_settings,
+            parser_backend=parser_choice,
         )
         return DocumentReparseResponse(
             document=document,
             auto_profile_sections=auto_profile_sections,
             warnings=warnings,
+        )
+
+    @app.get("/documents/{document_id}/parser-comparisons", response_model=ResumeParserComparisonResponse)
+    async def compare_document_parsers(
+        document_id: str,
+        profile_id: str | None = None,
+        current_user: User = Depends(get_current_user),
+        session: Session = Depends(get_session_async),
+        app_settings: Settings = Depends(get_app_settings),
+    ) -> ResumeParserComparisonResponse:
+        profile = resolve_profile(session, current_user, profile_id)
+        document = ensure_document_in_profile(session.get(Document, document_id), profile)
+        payload = compare_resume_parser_backends(document, app_settings)
+        return ResumeParserComparisonResponse(
+            document_id=document.id,
+            active_backend=payload["active_backend"],
+            available_backends=[ResumeParserBackendRead(**item) for item in payload["available_backends"]],
+            comparisons=[ResumeParserComparisonRunRead(**item) for item in payload["comparisons"]],
         )
 
     @app.delete("/documents/{document_id}")

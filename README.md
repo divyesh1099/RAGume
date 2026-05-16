@@ -113,6 +113,7 @@ curl -X PATCH "http://127.0.0.1:8000/profiles/<profile_id>" \
 ```bash
 curl -X POST "http://127.0.0.1:8000/documents/upload" \
   -F "profile_id=<profile_id>" \
+  -F "parser_backend=auto" \
   -F "file=@sample_resume_source.txt"
 ```
 
@@ -155,7 +156,15 @@ curl -X DELETE "http://127.0.0.1:8000/profiles/<profile_id>"
 ### 7. Re-run the parser for an uploaded document
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/documents/<document_id>/reparse?profile_id=<profile_id>"
+curl -X POST "http://127.0.0.1:8000/documents/<document_id>/reparse?profile_id=<profile_id>&parser_backend=auto"
+```
+
+### 7.5. Compare parser backends for one document
+
+```bash
+curl "http://127.0.0.1:8000/documents/<document_id>/parser-comparisons?profile_id=<profile_id>"
+
+curl "http://127.0.0.1:8000/resume-parsers"
 ```
 
 ### 8. Parse a JD upload into text
@@ -172,3 +181,24 @@ curl -X POST "http://127.0.0.1:8000/job-description/parse" \
 - Add wiki page generation from approved claims
 - Add AI headshot and professional photo generation using submitted visual evidence
 - Add a source-backed 3D face or full-body profile model using submitted photos and videos
+
+## Parser Comparison
+
+To compare the current parser against a Docling-backed parser and real OpenResume parser logic on one resume:
+
+```bash
+source .venv/bin/activate
+python scripts/compare_resume_parsers.py /path/to/resume.pdf \
+  --expect-name "Candidate Name" \
+  --expect-email candidate@example.com \
+  --expect-phone +15551234567 \
+  --expect-work-count 3 \
+  --expect-project-count 2 \
+  --expect-education-count 1
+```
+
+The first OpenResume run will clone the official repository into `data/parser-cache/open-resume/` and install its npm dependencies. If you want to use the Docling comparison path on a fresh environment, install it with:
+
+```bash
+pip install docling --extra-index-url https://download.pytorch.org/whl/cpu
+```

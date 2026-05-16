@@ -60,6 +60,11 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
             profile = await register_and_create_profile(client)
             profile_id = profile["id"]
 
+            parser_response = await client.get("/resume-parsers")
+            assert parser_response.status_code == 200
+            parser_payload = parser_response.json()
+            assert any(item["id"] == "layout_ner" for item in parser_payload)
+
             jd_parse_response = await client.post(
                 "/job-description/parse",
                 files={"file": ("job.txt", "Looking for a Python engineer with OCR and RAG experience.", "text/plain")},
@@ -99,18 +104,33 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
 
             upload_response = await client.post(
                 "/documents/upload",
-                data={"profile_id": profile_id},
+                data={"profile_id": profile_id, "parser_backend": "auto"},
                 files={"file": ("resume.txt", resume_text, "text/plain")},
             )
             assert upload_response.status_code == 200
             upload_payload = upload_response.json()
             document_id = upload_payload["document"]["id"]
             assert upload_payload["document"]["profile_id"] == profile_id
+            assert upload_payload["document"]["parse_metadata"]["profile_parser_backend"] == "layout_ner"
             assert upload_payload["chunks_created"] >= 1
             assert "identity" in upload_payload["auto_profile_sections"]
             assert "work_experience" in upload_payload["auto_profile_sections"]
             assert "education" in upload_payload["auto_profile_sections"]
             assert "projects" in upload_payload["auto_profile_sections"]
+
+            parser_compare_response = await client.get(f"/documents/{document_id}/parser-comparisons?profile_id={profile_id}")
+            assert parser_compare_response.status_code == 200
+            parser_compare_payload = parser_compare_response.json()
+            assert parser_compare_payload["document_id"] == document_id
+            assert parser_compare_payload["active_backend"] == "layout_ner"
+            assert any(item["backend"] == "layout_ner" for item in parser_compare_payload["comparisons"])
+
+            reparse_response = await client.post(
+                f"/documents/{document_id}/reparse?profile_id={profile_id}&parser_backend=auto"
+            )
+            assert reparse_response.status_code == 200
+            reparse_payload = reparse_response.json()
+            assert reparse_payload["document"]["parse_metadata"]["profile_parser_backend"] == "layout_ner"
 
             overview_response = await client.get(f"/profile/overview?profile_id={profile_id}")
             assert overview_response.status_code == 200

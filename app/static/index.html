@@ -81,6 +81,13 @@
                 <span class="dropzone-copy">TXT, MD, JSON, PDF, DOCX, YAML, CSV, LOG</span>
                 <span class="dropzone-foot" id="selected-file-label">Nothing selected yet.</span>
               </label>
+              <div class="stack-list compact-stack">
+                <label class="field-label" for="parser-backend-select">Parser backend</label>
+                <select id="parser-backend-select" aria-label="Select parser backend for uploads and re-runs">
+                  <option value="layout_ner">Layout + NER</option>
+                </select>
+                <p class="subtle" id="parser-backend-hint">Choose how resume-like evidence should be structured before it updates the profile.</p>
+              </div>
               <button class="primary-button" type="submit" id="upload-button">Upload evidence</button>
             </form>
             <p class="subtle" id="upload-status">New uploads are processed automatically and merged into the current profile.</p>
@@ -110,7 +117,11 @@
             </div>
             <div class="inline-row wrap">
               <button class="secondary-button" type="button" id="reparse-document-button" disabled>Re-run Parser</button>
+              <button class="secondary-button" type="button" id="compare-parsers-button" disabled>Compare Parsers</button>
               <button class="secondary-button danger-button" type="button" id="delete-document-button" disabled>Delete Evidence</button>
+            </div>
+            <div class="stack-list" id="selected-document-parser-comparison">
+              <div class="empty-state">Run parser comparison to inspect side-by-side extraction quality for this source.</div>
             </div>
           </article>
         </section>

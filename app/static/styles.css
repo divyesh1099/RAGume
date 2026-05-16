@@ -733,6 +733,21 @@ select:disabled,
   background: var(--surface-soft);
 }
 
+.comparison-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.parser-run-card {
+  align-content: start;
+}
+
+.parser-run-card.is-active {
+  border-color: rgba(26, 115, 232, 0.2);
+  background: var(--accent-soft);
+}
+
 .detail-card-title {
   font-size: 0.92rem;
   font-weight: 800;

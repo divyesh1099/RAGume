@@ -169,6 +169,33 @@ class JobDescriptionParseResponse(BaseModel):
     parse_metadata: dict
 
 
+class ResumeParserBackendRead(BaseModel):
+    id: str
+    label: str
+    description: str
+    available: bool
+    is_default: bool = False
+
+
+class ResumeParserComparisonRunRead(BaseModel):
+    backend: str
+    label: str
+    description: str
+    mode: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+    summary: dict = Field(default_factory=dict)
+    insights: dict = Field(default_factory=dict)
+    diagnostics: dict = Field(default_factory=dict)
+    error: str | None = None
+
+
+class ResumeParserComparisonResponse(BaseModel):
+    document_id: str
+    active_backend: str
+    available_backends: list[ResumeParserBackendRead] = Field(default_factory=list)
+    comparisons: list[ResumeParserComparisonRunRead] = Field(default_factory=list)
+
+
 class DashboardSummary(BaseModel):
     profile_id: str
     profile_name: str
@@ -184,6 +211,7 @@ class DashboardSummary(BaseModel):
     projects_total: int = 0
     llm_available: bool
     embedding_retrieval_available: bool
+    parser_backend: str
     extractor_mode: str
     openai_model: str | None = None
     openai_embedding_model: str | None = None
