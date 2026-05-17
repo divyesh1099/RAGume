@@ -340,6 +340,7 @@ class StructuredProfileClaimRead(BaseModel):
     document_filename: str | None = None
     section: str
     field_name: str
+    raw_value_json: dict = Field(default_factory=dict)
     value_json: dict = Field(default_factory=dict)
     value_text: str
     normalized_value: str
@@ -348,6 +349,10 @@ class StructuredProfileClaimRead(BaseModel):
     source_bbox: dict = Field(default_factory=dict)
     parser_name: str
     confidence: float
+    resolver_confidence: float = 0.0
+    resolver_action: str = "keep"
+    resolver_evidence: list[str] = Field(default_factory=list)
+    suggested_section: str | None = None
     status: str
     position: int
     created_at: dt.datetime
@@ -366,6 +371,42 @@ class StructuredProfileReviewSectionRead(BaseModel):
     claims: list[StructuredProfileClaimRead] = Field(default_factory=list)
 
 
+class ProfileStudioCorrectionDiagnosticsRead(BaseModel):
+    embedding_retrieval_enabled: bool = False
+    correction_embedding_provider: str = "openai"
+    correction_embedding_model: str | None = None
+    correction_embedding_cache_entries: int = 0
+    correction_embedding_cache_hits: int = 0
+    correction_embedding_cache_misses: int = 0
+    llm_arbiter_enabled: bool = False
+    llm_arbiter_provider: str = "openai"
+    llm_arbiter_model: str | None = None
+    llm_arbiter_decisions: int = 0
+    semantic_matches: int = 0
+    section_suggestions: int = 0
+    action_counts: dict[str, int] = Field(default_factory=dict)
+    top_reason_codes: dict[str, int] = Field(default_factory=dict)
+
+
+class ProfileStudioParserDiagnosticRead(BaseModel):
+    document_id: str
+    filename: str
+    parser_backend: str | None = None
+    extraction_mode: str | None = None
+    validation_status: str | None = None
+    validation_score: int | None = None
+    warning_count: int = 0
+    page_count: int = 0
+    block_count: int = 0
+    section_counts: dict[str, int] = Field(default_factory=dict)
+    embedding_status: str | None = None
+
+
+class ProfileStudioDiagnosticsRead(BaseModel):
+    correction: ProfileStudioCorrectionDiagnosticsRead
+    parser_sources: list[ProfileStudioParserDiagnosticRead] = Field(default_factory=list)
+
+
 class StructuredProfileReviewRead(BaseModel):
     profile_id: str
     profile_name: str
@@ -376,6 +417,8 @@ class StructuredProfileReviewRead(BaseModel):
     edited_total: int
     rejected_total: int
     sections: list[StructuredProfileReviewSectionRead] = Field(default_factory=list)
+    correction_summary: dict[str, int] = Field(default_factory=dict)
+    diagnostics: ProfileStudioDiagnosticsRead
     extracted_profile: ProfileOverviewRead
     review_preview_profile: ProfileOverviewRead
     canonical_profile: ProfileOverviewRead

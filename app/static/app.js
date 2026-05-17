@@ -12,6 +12,8 @@ const state = {
   profileOverview: null,
   profileStudioReview: null,
   profileStudioPreview: null,
+  profileStudioBucket: "review",
+  profileStudioSectionByBucket: {},
   documents: [],
   selectedDocumentId: null,
   claims: [],
@@ -151,6 +153,8 @@ const elements = {
   saveCanonicalButton: document.querySelector("#save-canonical-button"),
   resetCanonicalButton: document.querySelector("#reset-canonical-button"),
   profileMemoryMode: document.querySelector("#profile-memory-mode"),
+  profileDiagnosticsSummary: document.querySelector("#profile-diagnostics-summary"),
+  profileDiagnosticsSources: document.querySelector("#profile-diagnostics-sources"),
 
   wikiArticleCount: document.querySelector("#wiki-article-count"),
   wikiSearchInput: document.querySelector("#wiki-search-input"),
@@ -198,15 +202,21 @@ async function apiFetch(url, options = {}) {
   }
 
   const response = await fetch(url, config);
+  const contentType = response.headers.get("content-type") || "";
+  const rawBody = await response.text();
+
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
-    try {
-      const payload = await response.json();
-      message = payload.detail || payload.message || message;
-    } catch {
-      const text = await response.text();
-      if (text) {
-        message = text;
+    if (rawBody) {
+      if (contentType.includes("application/json")) {
+        try {
+          const payload = JSON.parse(rawBody);
+          message = payload.detail || payload.message || rawBody || message;
+        } catch {
+          message = rawBody;
+        }
+      } else {
+        message = rawBody;
       }
     }
     const error = new Error(message);
@@ -214,11 +224,13 @@ async function apiFetch(url, options = {}) {
     throw error;
   }
 
-  const contentType = response.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    return response.json();
+  if (!rawBody) {
+    return null;
   }
-  return response.text();
+  if (contentType.includes("application/json")) {
+    return JSON.parse(rawBody);
+  }
+  return rawBody;
 }
 
 function setLoading(button, isLoading, label) {
@@ -258,6 +270,10 @@ function unique(values) {
 }
 
 function formatSectionLabel(value) {
+  const mapped = reviewSectionChoices().find((choice) => choice.value === value)?.label;
+  if (mapped) {
+    return mapped;
+  }
   return String(value || "")
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
@@ -1643,7 +1659,7 @@ function renderWiki() {
 
 function reviewSectionChoices() {
   return [
-    { value: "identity", label: "Personal Info" },
+    { value: "identity", label: "Personal" },
     { value: "skills", label: "Skills" },
     { value: "work_experience", label: "Experience" },
     { value: "projects", label: "Projects" },
@@ -1662,6 +1678,46 @@ function structuredClaimStatusClass(status) {
     return "warning";
   }
   return "danger";
+}
+
+function structuredClaimResolverClass(action) {
+  const normalized = String(action || "").toLowerCase();
+  if (normalized === "auto_correct" || normalized === "accepted_suggestion") {
+    return "success";
+  }
+  if (normalized === "needs_review") {
+    return "danger";
+  }
+  if (normalized === "suggest" || normalized === "manual" || normalized === "duplicate") {
+    return "warning";
+  }
+  return "";
+}
+
+function structuredClaimValueText(section, fieldName, value) {
+  const payload = value || {};
+  if (section === "identity") {
+    return payload.value || "";
+  }
+  if (section === "skills") {
+    return payload.name || "";
+  }
+  if (section === "public_profiles") {
+    return [payload.label, payload.url].filter(Boolean).join(" · ");
+  }
+  if (section === "work_experience") {
+    return [payload.title, payload.organization, [payload.start_date, payload.end_date].filter(Boolean).join(" - ")].filter(Boolean).join(" · ");
+  }
+  if (section === "education") {
+    return [payload.degree, payload.institution, payload.field_of_study].filter(Boolean).join(" · ");
+  }
+  if (section === "projects") {
+    return [payload.name, payload.summary].filter(Boolean).join(" · ");
+  }
+  if (section === "certifications") {
+    return [payload.name, payload.issuer, payload.credential_id].filter(Boolean).join(" · ");
+  }
+  return payload.value || payload.name || payload.title || payload.summary || "";
 }
 
 function structuredClaimFieldMarkup(claim) {
@@ -1790,6 +1846,155 @@ function structuredClaimFieldMarkup(claim) {
   `;
 }
 
+function profileStudioBucketChoices() {
+  return [
+    {
+      value: "review",
+      label: "Needs Review",
+      description: "Focus here first. These are the only items that still need a decision or a quick adjustment.",
+      emptyMessage: "Nothing needs review right now.",
+    },
+    {
+      value: "ready",
+      label: "Ready / Accepted",
+      description: "These items already look solid enough to keep. Open this tab only when you want to spot-check them.",
+      emptyMessage: "No stable items yet.",
+    },
+    {
+      value: "rejected",
+      label: "Rejected / Ignored",
+      description: "These items stay out of the preview until you change them again.",
+      emptyMessage: "No rejected or ignored items yet.",
+    },
+  ];
+}
+
+function profileStudioBucketForClaim(claim) {
+  const status = String(claim.status || "").toLowerCase();
+  const action = String(claim.resolver_action || "keep").toLowerCase();
+  if (status === "rejected" || status === "duplicate" || action === "duplicate") {
+    return "rejected";
+  }
+  if (status === "accepted" || status === "edited") {
+    return "ready";
+  }
+  if (action === "needs_review" || action === "suggest") {
+    return "review";
+  }
+  if (action === "manual" || action === "auto_correct" || action === "keep" || action === "accepted_suggestion") {
+    return "ready";
+  }
+  return "review";
+}
+
+function buildProfileStudioBuckets(review) {
+  return profileStudioBucketChoices().map((bucket) => {
+    const sections = (review.sections || [])
+      .map((section) => {
+        const claims = (section.claims || []).filter((claim) => profileStudioBucketForClaim(claim) === bucket.value);
+        if (!claims.length) {
+          return null;
+        }
+        return {
+          section: section.section,
+          label: formatSectionLabel(section.section),
+          claims,
+        };
+      })
+      .filter(Boolean);
+
+    return {
+      ...bucket,
+      total: sections.reduce((count, section) => count + section.claims.length, 0),
+      sections,
+    };
+  });
+}
+
+function resolveActiveProfileStudioPane(buckets) {
+  const nonEmptyBuckets = buckets.filter((bucket) => bucket.total > 0);
+  const preferredBucket = buckets.find((bucket) => bucket.value === state.profileStudioBucket);
+  const activeBucket = (
+    (preferredBucket && (preferredBucket.total > 0 || !nonEmptyBuckets.length) ? preferredBucket : null)
+    || buckets.find((bucket) => bucket.value === "review" && bucket.total > 0)
+    || nonEmptyBuckets[0]
+    || buckets[0]
+  );
+  state.profileStudioBucket = activeBucket.value;
+
+  const preferredSection = state.profileStudioSectionByBucket[activeBucket.value];
+  const activeSection = activeBucket.sections.find((section) => section.section === preferredSection) || activeBucket.sections[0] || null;
+  if (activeSection) {
+    state.profileStudioSectionByBucket[activeBucket.value] = activeSection.section;
+  } else {
+    delete state.profileStudioSectionByBucket[activeBucket.value];
+  }
+  return { activeBucket, activeSection };
+}
+
+function structuredClaimCardMarkup(claim) {
+  const selectedSection = claim.suggested_section || claim.section;
+  const rawPreview = structuredClaimValueText(claim.section, claim.field_name, claim.raw_value_json || {});
+  const correctedPreview = structuredClaimValueText(selectedSection, claim.field_name, claim.value_json || {}) || claim.value_text || "Untitled item";
+  const hasCorrectionPreview = rawPreview && correctedPreview && rawPreview !== correctedPreview;
+  const sectionLabel = reviewSectionChoices().find((choice) => choice.value === selectedSection)?.label || formatSectionLabel(selectedSection);
+  const cardClasses = ["studio-claim-card"];
+  if (selectedSection === "skills") {
+    cardClasses.push("studio-skill-card");
+  }
+
+  return `
+    <article class="${cardClasses.join(" ")}" data-claim-id="${claim.id}" data-claim-section="${escapeHtml(claim.section)}">
+      <div class="meta-row">
+        <span class="chip ${structuredClaimStatusClass(claim.status)}">${escapeHtml(claim.status.replaceAll("_", " ").toUpperCase())}</span>
+        <span class="chip ${structuredClaimResolverClass(claim.resolver_action)}">${escapeHtml(String(claim.resolver_action || "keep").replaceAll("_", " ").toUpperCase())}</span>
+        <span class="meta-text">${confidencePercent(claim.confidence)}% parser</span>
+        <span class="meta-text">${confidencePercent(claim.resolver_confidence || 0)}% resolver</span>
+        <span class="meta-text">${escapeHtml(claim.document_filename || "Source document")}</span>
+      </div>
+      <div class="studio-claim-preview">${escapeHtml(correctedPreview)}</div>
+      ${hasCorrectionPreview ? `
+        <div class="studio-claim-diff">
+          <span>${escapeHtml(rawPreview)}</span>
+          <span class="studio-claim-arrow">→</span>
+          <strong>${escapeHtml(correctedPreview)}</strong>
+        </div>
+      ` : ""}
+      ${claim.suggested_section && claim.suggested_section !== claim.section ? `<p class="subtle studio-claim-note">Suggested move: ${escapeHtml(sectionLabel)}</p>` : ""}
+      ${claim.source_text ? `<p class="subtle">${escapeHtml(claim.source_text)}</p>` : ""}
+      ${(claim.resolver_evidence || []).length ? `
+        <div class="meta-row studio-claim-evidence">
+          ${(claim.resolver_evidence || []).map((reason) => `<span class="chip">${escapeHtml(String(reason).replaceAll("_", " "))}</span>`).join("")}
+        </div>
+      ` : ""}
+      <div class="two-col-grid compact-grid">
+        <div>
+          <label class="field-label">Section</label>
+          <select data-claim-section-select>
+            ${reviewSectionChoices().map((choice) => `
+              <option value="${escapeHtml(choice.value)}" ${choice.value === selectedSection ? "selected" : ""}>
+                ${escapeHtml(choice.label)}
+              </option>
+            `).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Parser</label>
+          <input type="text" value="${escapeHtml(claim.parser_name)}" disabled>
+        </div>
+      </div>
+      <div class="form-stack compact-form">
+        ${structuredClaimFieldMarkup(claim)}
+      </div>
+      <div class="inline-row wrap">
+        <button class="secondary-button" type="button" data-claim-action="accept">Accept</button>
+        <button class="secondary-button" type="button" data-claim-action="save">Save edit</button>
+        <button class="secondary-button danger-button" type="button" data-claim-action="reject">Reject</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderProfileStudioReview() {
   if (!elements.profileReviewSections) {
     return;
@@ -1798,74 +2003,168 @@ function renderProfileStudioReview() {
   if (!review) {
     elements.profileReviewSections.innerHTML = '<div class="empty-state">Review data will appear here after upload.</div>';
     if (elements.profileReviewMeta) {
-      elements.profileReviewMeta.textContent = "Parser claims will appear here after upload.";
+      elements.profileReviewMeta.textContent = "Auto-corrected items and review suggestions will appear here after upload.";
     }
     return;
   }
 
+  const buckets = buildProfileStudioBuckets(review);
+  const { activeBucket, activeSection } = resolveActiveProfileStudioPane(buckets);
+  const reviewCount = buckets.find((bucket) => bucket.value === "review")?.total || 0;
+  const readyCount = buckets.find((bucket) => bucket.value === "ready")?.total || 0;
+  const rejectedCount = buckets.find((bucket) => bucket.value === "rejected")?.total || 0;
+
   if (elements.profileReviewMeta) {
-    elements.profileReviewMeta.textContent = `${review.claims_total} extracted items · ${review.pending_total} pending · ${review.accepted_total} accepted · ${review.edited_total} edited · ${review.rejected_total} rejected`;
+    elements.profileReviewMeta.textContent = `${review.claims_total} extracted items · ${reviewCount} to review now · ${readyCount} ready or accepted · ${rejectedCount} rejected or ignored`;
   }
 
-  const visibleSections = (review.sections || []).filter((section) => (section.claims || []).length);
-  if (!visibleSections.length) {
+  if (!buckets.some((bucket) => bucket.total > 0)) {
     elements.profileReviewSections.innerHTML = '<div class="empty-state">Upload evidence to generate reviewable profile items.</div>';
     return;
   }
 
-  elements.profileReviewSections.innerHTML = visibleSections
-    .map((section) => `
-      <section class="studio-section">
-        <div class="studio-section-header">
-          <div>
-            <h3>${escapeHtml(section.label)}</h3>
-            <p class="subtle">${(section.claims || []).length} extracted item${section.claims.length === 1 ? "" : "s"}</p>
+  const sectionButtons = activeBucket.sections.length
+    ? activeBucket.sections.map((section) => `
+        <button
+          class="studio-section-tab ${activeSection?.section === section.section ? "is-active" : ""}"
+          type="button"
+          data-studio-section="${escapeHtml(section.section)}"
+        >
+          <span>${escapeHtml(section.label)}</span>
+          <span>${section.claims.length}</span>
+        </button>
+      `).join("")
+    : "";
+
+  const sectionBody = activeSection
+    ? `
+        <section class="studio-section-panel">
+          <div class="studio-pane-header">
+            <div>
+              <span class="eyebrow">${escapeHtml(activeBucket.label)}</span>
+              <h3>${escapeHtml(activeSection.label)}</h3>
+              <p class="subtle">${activeBucket.description}</p>
+            </div>
+            <span class="chip">${activeSection.claims.length} item${activeSection.claims.length === 1 ? "" : "s"}</span>
           </div>
+          <div class="studio-claim-list ${activeSection.section === "skills" ? "studio-skill-grid" : ""}">
+            ${activeSection.claims.map((claim) => structuredClaimCardMarkup(claim)).join("")}
+          </div>
+        </section>
+      `
+    : `<div class="empty-state">${escapeHtml(activeBucket.emptyMessage)}</div>`;
+
+  elements.profileReviewSections.innerHTML = `
+    <div class="studio-review-shell">
+      <div class="studio-bucket-tabs" role="tablist" aria-label="Profile review groups">
+        ${buckets.map((bucket) => `
+          <button
+            class="studio-bucket-tab ${activeBucket.value === bucket.value ? "is-active" : ""}"
+            type="button"
+            role="tab"
+            aria-selected="${activeBucket.value === bucket.value ? "true" : "false"}"
+            data-studio-bucket="${escapeHtml(bucket.value)}"
+            ${bucket.total ? "" : "disabled"}
+          >
+            <span class="studio-bucket-label">${escapeHtml(bucket.label)}</span>
+            <span class="studio-bucket-copy">${bucket.total} item${bucket.total === 1 ? "" : "s"}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div class="studio-review-workbench">
+        <aside class="studio-section-nav">
+          <div class="studio-section-nav-label">Sections</div>
+          ${sectionButtons || `<div class="empty-inline">${escapeHtml(activeBucket.emptyMessage)}</div>`}
+        </aside>
+        <div class="studio-section-stage">
+          ${sectionBody}
         </div>
-        <div class="studio-claim-list">
-          ${(section.claims || []).map((claim) => `
-            <article class="studio-claim-card" data-claim-id="${claim.id}" data-claim-section="${escapeHtml(claim.section)}">
-              <div class="meta-row">
-                <span class="chip ${structuredClaimStatusClass(claim.status)}">${escapeHtml(claim.status.replaceAll("_", " ").toUpperCase())}</span>
-                <span class="meta-text">${confidencePercent(claim.confidence)}% confidence</span>
-                <span class="meta-text">${escapeHtml(claim.document_filename || "Source document")}</span>
-              </div>
-              <div class="studio-claim-preview">${escapeHtml(claim.value_text || "Untitled item")}</div>
-              ${claim.source_text ? `<p class="subtle">${escapeHtml(claim.source_text)}</p>` : ""}
-              <div class="two-col-grid compact-grid">
-                <div>
-                  <label class="field-label">Section</label>
-                  <select data-claim-section-select>
-                    ${reviewSectionChoices().map((choice) => `
-                      <option value="${escapeHtml(choice.value)}" ${choice.value === claim.section ? "selected" : ""}>
-                        ${escapeHtml(choice.label)}
-                      </option>
-                    `).join("")}
-                  </select>
-                </div>
-                <div>
-                  <label class="field-label">Parser</label>
-                  <input type="text" value="${escapeHtml(claim.parser_name)}" disabled>
-                </div>
-              </div>
-              <div class="form-stack compact-form">
-                ${structuredClaimFieldMarkup(claim)}
-              </div>
-              <div class="inline-row wrap">
-                <button class="secondary-button" type="button" data-claim-action="accept">Accept</button>
-                <button class="secondary-button" type="button" data-claim-action="save">Save edit</button>
-                <button class="secondary-button danger-button" type="button" data-claim-action="reject">Reject</button>
-              </div>
-            </article>
-          `).join("")}
-        </div>
-      </section>
-    `)
-    .join("");
+      </div>
+    </div>
+  `;
+
+  for (const button of elements.profileReviewSections.querySelectorAll("[data-studio-bucket]")) {
+    button.addEventListener("click", () => {
+      state.profileStudioBucket = button.dataset.studioBucket;
+      renderProfileStudioReview();
+    });
+  }
+
+  for (const button of elements.profileReviewSections.querySelectorAll("[data-studio-section]")) {
+    button.addEventListener("click", () => {
+      state.profileStudioSectionByBucket[state.profileStudioBucket] = button.dataset.studioSection;
+      renderProfileStudioReview();
+    });
+  }
 
   for (const button of elements.profileReviewSections.querySelectorAll("[data-claim-action]")) {
     button.addEventListener("click", () => submitStructuredProfileClaim(button));
   }
+}
+
+function renderProfileStudioDiagnostics() {
+  if (!elements.profileDiagnosticsSummary || !elements.profileDiagnosticsSources) {
+    return;
+  }
+  const diagnostics = state.profileStudioReview?.diagnostics;
+  if (!diagnostics) {
+    elements.profileDiagnosticsSummary.innerHTML = '<div class="empty-state">Correction diagnostics will appear after review data loads.</div>';
+    elements.profileDiagnosticsSources.innerHTML = '<div class="empty-state">Parser diagnostics will appear after documents are processed.</div>';
+    return;
+  }
+
+  const correction = diagnostics.correction || {};
+  const actionCounts = correction.action_counts || {};
+  const topReasons = correction.top_reason_codes || {};
+  elements.profileDiagnosticsSummary.innerHTML = `
+    <div class="meta-row">
+      <span class="chip ${correction.embedding_retrieval_enabled ? "success" : "warning"}">${correction.embedding_retrieval_enabled ? "Embeddings On" : "Embeddings Off"}</span>
+      <span class="chip ${correction.llm_arbiter_enabled ? "success" : "warning"}">${correction.llm_arbiter_enabled ? "Arbiter On" : "Arbiter Off"}</span>
+      <span class="chip">${escapeHtml(correction.llm_arbiter_provider || "openai")}</span>
+    </div>
+    <div class="detail-grid">
+      ${fieldPreviewCard("Runtime", [
+        correction.correction_embedding_model ? `Embeddings: ${correction.correction_embedding_provider || "openai"} · ${correction.correction_embedding_model}` : "Embeddings: disabled",
+        correction.llm_arbiter_model ? `Arbiter: ${correction.llm_arbiter_model}` : "Arbiter: disabled",
+        `Cache entries: ${correction.correction_embedding_cache_entries || 0}`,
+      ])}
+      ${fieldPreviewCard("Signals", [
+        `Semantic matches: ${correction.semantic_matches || 0}`,
+        `Arbiter decisions: ${correction.llm_arbiter_decisions || 0}`,
+        `Section suggestions: ${correction.section_suggestions || 0}`,
+      ])}
+      ${fieldPreviewCard("Cache", [
+        `Hits: ${correction.correction_embedding_cache_hits || 0}`,
+        `Misses: ${correction.correction_embedding_cache_misses || 0}`,
+      ])}
+      ${fieldPreviewCard("Resolver actions", Object.entries(actionCounts).map(([name, count]) => `${formatSectionLabel(name)}: ${count}`))}
+    </div>
+    <div class="stack-list compact-stack">
+      ${Object.keys(topReasons).length
+        ? Object.entries(topReasons).map(([reason, count]) => `<div class="detail-line">${escapeHtml(String(reason).replaceAll("_", " "))} · ${escapeHtml(String(count))}</div>`).join("")
+        : '<div class="detail-line">No correction reasons recorded yet.</div>'}
+    </div>
+  `;
+
+  const parserSources = diagnostics.parser_sources || [];
+  elements.profileDiagnosticsSources.innerHTML = parserSources.length
+    ? parserSources.map((source) => `
+        <article class="detail-card">
+          <div class="meta-row">
+            <strong>${escapeHtml(source.filename)}</strong>
+            ${source.validation_status ? `<span class="chip ${statusChipClass(source.validation_status)}">${escapeHtml(String(source.validation_status).replaceAll("_", " ").toUpperCase())}</span>` : ""}
+            ${source.embedding_status ? `<span class="chip">${escapeHtml(source.embedding_status)}</span>` : ""}
+          </div>
+          <div class="detail-line">${escapeHtml(source.parser_backend || "parser")} · ${escapeHtml(source.extraction_mode || "mode")} · score ${escapeHtml(String(source.validation_score ?? "--"))}</div>
+          <div class="detail-line">${escapeHtml(String(source.page_count || 0))} pages · ${escapeHtml(String(source.block_count || 0))} blocks · ${escapeHtml(String(source.warning_count || 0))} warnings</div>
+          <div class="tag-row">
+            ${Object.entries(source.section_counts || {}).length
+              ? Object.entries(source.section_counts || {}).map(([section, count]) => `<span class="tag">${escapeHtml(formatSectionLabel(section))} · ${escapeHtml(String(count))}</span>`).join("")
+              : '<span class="empty-inline">No detected sections reported.</span>'}
+          </div>
+        </article>
+      `).join("")
+    : '<div class="empty-state">Parser diagnostics will appear after documents are processed.</div>';
 }
 
 function renderProfileEditor() {
@@ -2206,6 +2505,7 @@ async function loadProfileStudioReview() {
   state.profileStudioReview = await apiFetch(withProfileQuery("/profile/studio/review"));
   state.profileStudioPreview = state.profileStudioReview.review_preview_profile || null;
   renderProfileStudioReview();
+  renderProfileStudioDiagnostics();
   renderProfileOverviewSnapshot();
 }
 

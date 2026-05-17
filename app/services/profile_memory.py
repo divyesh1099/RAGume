@@ -3,6 +3,7 @@ import json
 import re
 from collections import defaultdict
 from typing import Any
+from urllib.parse import urlparse
 
 from openai import OpenAI
 from sqlalchemy import select
@@ -116,6 +117,58 @@ def _normalize_url(url: str) -> str:
     if cleaned.startswith("www."):
         cleaned = f"https://{cleaned}"
     return cleaned
+
+
+def _canonical_url_key(url: str) -> str:
+    parsed = urlparse(url if "://" in url else f"https://{url}")
+    host = parsed.netloc.lower().removeprefix("www.")
+    path = parsed.path.rstrip("/")
+    return f"{host}{path}"
+
+
+def _url_path_segments(url: str) -> list[str]:
+    parsed = urlparse(url if "://" in url else f"https://{url}")
+    return [segment for segment in parsed.path.split("/") if segment]
+
+
+def _looks_like_project_repository_url(url: str) -> bool:
+    parsed = urlparse(url if "://" in url else f"https://{url}")
+    host = parsed.netloc.lower().removeprefix("www.")
+    segments = _url_path_segments(url)
+    if host in {"github.com", "gitlab.com", "bitbucket.org"}:
+        return len(segments) >= 2
+    if host == "huggingface.co":
+        if not segments:
+            return False
+        if segments[0] in {"spaces", "datasets", "models"}:
+            return True
+        return len(segments) >= 2
+    return False
+
+
+def _project_link_keys(projects: list[dict[str, Any]]) -> set[str]:
+    keys: set[str] = set()
+    for project in projects:
+        for link in project.get("links", []) or []:
+            normalized = _normalize_url(str(link))
+            if normalized:
+                keys.add(_canonical_url_key(normalized))
+    return keys
+
+
+def _filter_public_profile_links(links: list[dict[str, str]], projects: list[dict[str, Any]]) -> list[dict[str, str]]:
+    project_keys = _project_link_keys(projects)
+    filtered: list[dict[str, str]] = []
+    for item in links:
+        url = _normalize_url(item.get("url", ""))
+        if not url:
+            continue
+        if _canonical_url_key(url) in project_keys:
+            continue
+        if _looks_like_project_repository_url(url):
+            continue
+        filtered.append({"label": _clean_line(item.get("label") or "Link"), "url": url})
+    return _unique_links(filtered)
 
 
 def _unique_strings(values: list[str]) -> list[str]:
@@ -239,6 +292,7 @@ def _normalize_overview_data(value: dict[str, Any] | None) -> dict[str, Any]:
     data["work_experience"] = _normalize_item_list(list(raw.get("work_experience", [])), "work_experience")
     data["projects"] = _normalize_item_list(list(raw.get("projects", [])), "projects")
     data["certifications"] = _normalize_item_list(list(raw.get("certifications", [])), "certifications")
+    data["public_profiles"] = _filter_public_profile_links(data["public_profiles"], data["projects"])
     data["source_documents"] = [
         normalized
         for normalized in (_normalize_source_document(item) for item in raw.get("source_documents", []))

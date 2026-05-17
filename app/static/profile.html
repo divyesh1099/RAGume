@@ -66,30 +66,40 @@
           </article>
         </section>
 
+        <nav class="studio-jump-nav" aria-label="Profile studio sections">
+          <a class="studio-jump-link" href="#profile-studio-step-1">Step 1 Review</a>
+          <a class="studio-jump-link" href="#profile-studio-step-2">Step 2 Memory</a>
+          <a class="studio-jump-link" href="#profile-studio-diagnostics">Diagnostics</a>
+        </nav>
+
         <section class="split-grid profile-studio-grid">
-          <article class="surface">
+          <article class="surface" id="profile-studio-step-1">
             <div class="surface-header">
               <div>
                 <span class="eyebrow">Step 1</span>
                 <h2>Extracted profile review</h2>
               </div>
               <div class="inline-row wrap">
+                <a class="studio-jump-link" href="#profile-studio-step-2">Jump to Step 2</a>
                 <button class="secondary-button" type="button" id="accept-all-review-button">Accept All</button>
                 <button class="primary-button" type="button" id="save-canonical-button">Save Profile</button>
                 <button class="secondary-button" type="button" id="reset-canonical-button">Reset to Extracted</button>
               </div>
             </div>
-            <p class="subtle" id="profile-review-meta">Parser claims will appear here after upload.</p>
+            <p class="subtle" id="profile-review-meta">Auto-corrected items and review suggestions will appear here after upload.</p>
             <div class="stack-list" id="profile-review-sections">
               <div class="empty-state">Upload a resume or career document to begin the review flow.</div>
             </div>
           </article>
 
-          <article class="surface">
+          <article class="surface" id="profile-studio-step-2">
             <div class="surface-header">
               <div>
                 <span class="eyebrow">Step 2</span>
                 <h2>Canonical profile memory</h2>
+              </div>
+              <div class="inline-row wrap">
+                <a class="studio-jump-link" href="#profile-studio-step-1">Back to Step 1</a>
               </div>
             </div>
             <p class="subtle" id="profile-memory-mode">The saved profile memory will appear here after review.</p>
@@ -138,6 +148,29 @@
               </article>
             </div>
           </article>
+        </section>
+
+        <section class="surface" id="profile-studio-diagnostics">
+          <div class="surface-header">
+            <div>
+              <span class="eyebrow">Diagnostics</span>
+              <h2>Parser and correction engine</h2>
+            </div>
+          </div>
+          <div class="split-grid diagnostics-grid">
+            <article class="detail-card">
+              <div class="detail-card-title">Correction engine</div>
+              <div class="stack-list compact-stack" id="profile-diagnostics-summary">
+                <div class="empty-state">Correction diagnostics will appear after review data loads.</div>
+              </div>
+            </article>
+            <article class="detail-card">
+              <div class="detail-card-title">Source parser snapshots</div>
+              <div class="stack-list compact-stack" id="profile-diagnostics-sources">
+                <div class="empty-state">Parser diagnostics will appear after documents are processed.</div>
+              </div>
+            </article>
+          </div>
         </section>
       </main>
     </div>

@@ -105,6 +105,54 @@ def _canonical_url_key(url: str) -> str:
     return f"{host}{path}"
 
 
+def _url_path_segments(url: str) -> list[str]:
+    parsed = urlparse(url if "://" in url else f"https://{url}")
+    return [segment for segment in parsed.path.split("/") if segment]
+
+
+def _looks_like_project_repository_url(url: str) -> bool:
+    parsed = urlparse(url if "://" in url else f"https://{url}")
+    host = parsed.netloc.lower().removeprefix("www.")
+    segments = _url_path_segments(url)
+    if host in {"github.com", "gitlab.com", "bitbucket.org"}:
+        return len(segments) >= 2
+    if host == "huggingface.co":
+        if not segments:
+            return False
+        if segments[0] in {"spaces", "datasets", "models"}:
+            return True
+        return len(segments) >= 2
+    return False
+
+
+def _project_link_keys(projects: Iterable[dict[str, Any]]) -> set[str]:
+    keys: set[str] = set()
+    for project in projects:
+        for link in project.get("links", []) or []:
+            normalized = _normalize_url(str(link))
+            if normalized:
+                keys.add(_canonical_url_key(normalized))
+    return keys
+
+
+def _filter_public_profile_links(
+    links: Iterable[dict[str, str]],
+    projects: Iterable[dict[str, Any]] | None = None,
+) -> list[dict[str, str]]:
+    project_keys = _project_link_keys(projects or [])
+    filtered: list[dict[str, str]] = []
+    for item in links:
+        url = _normalize_url(item.get("url", ""))
+        if not url:
+            continue
+        if _canonical_url_key(url) in project_keys:
+            continue
+        if _looks_like_project_repository_url(url):
+            continue
+        filtered.append({"label": _clean_text(item.get("label") or "Link"), "url": url})
+    return _unique_links(filtered)
+
+
 def _is_valid_public_url(url: str) -> bool:
     parsed = urlparse(url if "://" in url else f"https://{url}")
     host = parsed.netloc.lower()
@@ -347,7 +395,12 @@ def _looks_like_name(value: str) -> bool:
     return all(re.fullmatch(r"[A-Za-z][A-Za-z'.-]*", word) is not None for word in words)
 
 
-def _visible_url_links(document: Document, layout: dict[str, Any]) -> list[dict[str, str]]:
+def _visible_url_links(
+    document: Document,
+    layout: dict[str, Any],
+    *,
+    projects: list[dict[str, Any]] | None = None,
+) -> list[dict[str, str]]:
     links: list[dict[str, str]] = []
     for item in layout.get("links", []):
         uri = item.get("uri")
@@ -358,7 +411,7 @@ def _visible_url_links(document: Document, layout: dict[str, Any]) -> list[dict[
             continue
         links.append({"label": label, "url": uri})
     links.extend({"label": _classify_link(match.group(0)), "url": match.group(0)} for match in URL_PATTERN.finditer(document.extracted_text))
-    return _unique_links(links)
+    return _filter_public_profile_links(links, projects=projects)
 
 
 def _normalized_phone(value: str) -> str | None:
@@ -723,13 +776,27 @@ def _parse_projects(
         highlights = _normalize_highlights(current.get("body_lines", []))
         summary = _entry_summary(highlights) or current.get("inline_summary")
         technologies = _unique_skill_strings([*current.get("technologies", []), *extract_skills(" ".join(highlights))])
+        discovered_links = [
+            _normalize_url(match.group(0))
+            for match in URL_PATTERN.finditer(
+                " ".join(
+                    part
+                    for part in [
+                        current.get("name", ""),
+                        current.get("inline_summary", ""),
+                        *current.get("body_lines", []),
+                    ]
+                    if part
+                )
+            )
+        ]
         if current.get("name"):
             projects.append(
                 {
                     "name": current.get("name"),
                     "summary": summary,
                     "technologies": technologies,
-                    "links": _unique_strings(current.get("links", [])),
+                    "links": _unique_strings([*current.get("links", []), *discovered_links]),
                     "source_document_ids": [document_id],
                 }
             )
@@ -769,7 +836,10 @@ def _parse_projects(
                 "body_lines": body_lines,
                 "inline_summary": inline_summary,
                 "technologies": initial_technologies,
-                "links": list(block.get("link_uris", [])),
+                "links": [
+                    *_unique_strings(list(block.get("link_uris", []))),
+                    *[_normalize_url(match.group(0)) for match in URL_PATTERN.finditer(text)],
+                ],
             }
             continue
 
@@ -919,6 +989,7 @@ def _coerce_schema(payload: dict[str, Any], document_id: str) -> dict[str, Any]:
             normalized_item["source_document_ids"] = _unique_strings([*normalized_item.get("source_document_ids", []), document_id])
             normalized_items.append(normalized_item)
         merged[key] = normalized_items
+    merged["public_profiles"] = _filter_public_profile_links(merged.get("public_profiles", []), projects=merged.get("projects", []))
     return merged
 
 
@@ -1065,7 +1136,7 @@ def parse_resume_document(document: Document, settings: Settings) -> tuple[dict[
             ner_for_text,
         ),
         "skills": _collect_skills(document, section_blocks, work_experience, projects, ner_for_text),
-        "public_profiles": _visible_url_links(document, layout),
+        "public_profiles": _visible_url_links(document, layout, projects=projects),
         "education": education,
         "work_experience": work_experience,
         "projects": projects,

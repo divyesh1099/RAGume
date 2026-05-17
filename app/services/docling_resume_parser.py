@@ -331,7 +331,7 @@ def parse_resume_document_with_docling(
             )
         ),
         "skills": _collect_skills(working_document, section_blocks, work_experience, projects, ner_for_text),
-        "public_profiles": _visible_url_links(working_document, layout),
+        "public_profiles": _visible_url_links(working_document, layout, projects=projects),
         "education": education,
         "work_experience": work_experience,
         "projects": projects,

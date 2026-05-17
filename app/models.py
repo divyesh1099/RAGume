@@ -1,7 +1,7 @@
 import datetime as dt
 import uuid
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -81,6 +81,18 @@ class Profile(Base):
         cascade="all, delete-orphan",
     )
     structured_profile_claims: Mapped[list["StructuredProfileClaim"]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+    )
+    canonical_values: Mapped[list["CanonicalValue"]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+    )
+    correction_rules: Mapped[list["CorrectionRule"]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+    )
+    correction_embeddings: Mapped[list["CorrectionEmbedding"]] = relationship(
         back_populates="profile",
         cascade="all, delete-orphan",
     )
@@ -169,6 +181,7 @@ class StructuredProfileClaim(Base):
     document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     section: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     field_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    raw_value_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     value_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     value_text: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_value: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
@@ -177,6 +190,10 @@ class StructuredProfileClaim(Base):
     source_bbox: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     parser_name: Mapped[str] = mapped_column(String(80), nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    resolver_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    resolver_action: Mapped[str] = mapped_column(String(32), default="keep", nullable=False, index=True)
+    resolver_evidence: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    suggested_section: Mapped[str | None] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False, index=True)
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
@@ -184,6 +201,60 @@ class StructuredProfileClaim(Base):
 
     document: Mapped["Document"] = relationship(back_populates="structured_profile_claims")
     profile: Mapped["Profile"] = relationship(back_populates="structured_profile_claims")
+
+
+class CanonicalValue(Base):
+    __tablename__ = "canonical_values"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.id"), nullable=False, index=True)
+    value_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    canonical_value: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    aliases_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    source: Mapped[str] = mapped_column(String(80), default="manual", nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    profile: Mapped["Profile"] = relationship(back_populates="canonical_values")
+
+
+class CorrectionRule(Base):
+    __tablename__ = "correction_rules"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.id"), nullable=False, index=True)
+    pattern: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    field_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    target_value: Mapped[str | None] = mapped_column(String(255))
+    target_section: Mapped[str | None] = mapped_column(String(50))
+    confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    profile: Mapped["Profile"] = relationship(back_populates="correction_rules")
+
+
+class CorrectionEmbedding(Base):
+    __tablename__ = "correction_embeddings"
+    __table_args__ = (
+        UniqueConstraint("profile_id", "embedding_kind", "text_hash", "provider", "model", name="uq_correction_embedding_cache"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.id"), nullable=False, index=True)
+    embedding_kind: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    text_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    text_value: Mapped[str] = mapped_column(Text, nullable=False)
+    provider: Mapped[str] = mapped_column(String(40), default="openai", nullable=False, index=True)
+    model: Mapped[str] = mapped_column(String(120), nullable=False)
+    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    vector: Mapped[list[float]] = mapped_column(JSON, nullable=False)
+    hit_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    profile: Mapped["Profile"] = relationship(back_populates="correction_embeddings")
 
 
 class ProfileGraphNode(Base):

@@ -140,6 +140,66 @@ def _run_startup_migrations(engine) -> None:
                 )
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_documents_profile_id ON documents (profile_id)"))
 
+        if "structured_profile_claims" in table_names:
+            structured_columns = _column_names(connection, "structured_profile_claims")
+            if "raw_value_json" not in structured_columns:
+                connection.execute(text("ALTER TABLE structured_profile_claims ADD COLUMN raw_value_json JSON"))
+                connection.execute(
+                    text(
+                        "UPDATE structured_profile_claims SET raw_value_json = value_json "
+                        "WHERE raw_value_json IS NULL"
+                    )
+                )
+            if "resolver_confidence" not in structured_columns:
+                connection.execute(text("ALTER TABLE structured_profile_claims ADD COLUMN resolver_confidence FLOAT"))
+                connection.execute(
+                    text(
+                        "UPDATE structured_profile_claims SET resolver_confidence = confidence "
+                        "WHERE resolver_confidence IS NULL"
+                    )
+                )
+            if "resolver_action" not in structured_columns:
+                connection.execute(text("ALTER TABLE structured_profile_claims ADD COLUMN resolver_action VARCHAR(32)"))
+                connection.execute(
+                    text(
+                        "UPDATE structured_profile_claims SET resolver_action = 'keep' "
+                        "WHERE resolver_action IS NULL"
+                    )
+                )
+            if "resolver_evidence" not in structured_columns:
+                connection.execute(text("ALTER TABLE structured_profile_claims ADD COLUMN resolver_evidence JSON"))
+                connection.execute(
+                    text(
+                        "UPDATE structured_profile_claims SET resolver_evidence = '[]' "
+                        "WHERE resolver_evidence IS NULL"
+                    )
+                )
+            if "suggested_section" not in structured_columns:
+                connection.execute(text("ALTER TABLE structured_profile_claims ADD COLUMN suggested_section VARCHAR(50)"))
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_structured_profile_claims_resolver_action "
+                    "ON structured_profile_claims (resolver_action)"
+                )
+            )
+
+        if "correction_embeddings" in table_names:
+            correction_embedding_columns = _column_names(connection, "correction_embeddings")
+            if "provider" not in correction_embedding_columns:
+                connection.execute(text("ALTER TABLE correction_embeddings ADD COLUMN provider VARCHAR(40)"))
+                connection.execute(
+                    text(
+                        "UPDATE correction_embeddings SET provider = 'openai' "
+                        "WHERE provider IS NULL OR provider = ''"
+                    )
+                )
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_correction_embeddings_profile_provider "
+                    "ON correction_embeddings (profile_id, provider)"
+                )
+            )
+
         if "profile_graph_nodes" in table_names:
             graph_node_columns = _column_names(connection, "profile_graph_nodes")
             if "profile_id" not in graph_node_columns:

@@ -7,7 +7,14 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Document, Profile, StructuredProfileClaim, User
+from app.config import Settings
+from app.models import CorrectionEmbedding, Document, Profile, StructuredProfileClaim, User
+from app.services.correction_resolver import (
+    correction_arbiter_available,
+    resolve_structured_profile_claims,
+    sync_canonical_values_from_overview,
+)
+from app.services.embeddings import correction_embedding_available, correction_embedding_model_name, correction_embedding_provider
 from app.services.profile_memory import (
     _default_identity,
     _default_overview_data,
@@ -33,7 +40,17 @@ REVIEW_SECTION_ORDER = (
     "certifications",
     "public_profiles",
 )
+REVIEW_SECTION_LABELS = {
+    "identity": "Personal",
+    "skills": "Skills",
+    "work_experience": "Experience",
+    "projects": "Projects",
+    "education": "Education",
+    "certifications": "Certifications",
+    "public_profiles": "Links",
+}
 REVIEWABLE_STATUSES = {"accepted", "edited"}
+STRUCTURED_PROFILE_RESOLVER_VERSION = "correction-v3"
 
 
 def _string_value(value: Any) -> str:
@@ -135,6 +152,7 @@ def structured_profile_claim_sync_key(document: Document) -> str:
         "profile_parser_backend": parse_metadata.get("profile_parser_backend"),
         "profile_extraction_mode": parse_metadata.get("profile_extraction_mode"),
         "profile_validation": parse_metadata.get("profile_validation") or {},
+        "resolver_version": STRUCTURED_PROFILE_RESOLVER_VERSION,
     }
     serialized = json.dumps(payload, sort_keys=True, ensure_ascii=True)
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
@@ -187,7 +205,24 @@ def _simple_claims(section: str, values: list[Any], *, key_name: str) -> list[tu
     return claims
 
 
-def sync_document_structured_profile_claims(session: Session, profile: Profile, document: Document) -> list[StructuredProfileClaim]:
+def _claim_raw_signature(field_name: str, value_json: dict[str, Any]) -> str:
+    normalized_json = json.dumps(value_json, sort_keys=True, ensure_ascii=True).lower()
+    return f"{field_name}|raw|{normalized_json}"[:512]
+
+
+def _refresh_claim_derived_fields(claim: StructuredProfileClaim) -> None:
+    value_json = dict(claim.value_json or {})
+    claim.value_text = _claim_value_text(claim.section, claim.field_name, value_json)
+    claim.normalized_value = _claim_normalized_value(claim.section, claim.field_name, value_json)
+    claim.source_text = _claim_source_text(claim.section, value_json)
+
+
+def sync_document_structured_profile_claims(
+    session: Session,
+    profile: Profile,
+    document: Document,
+    settings: Settings | None = None,
+) -> list[StructuredProfileClaim]:
     parse_metadata = dict(document.parse_metadata or {})
     insights = _normalize_overview_data(parse_metadata.get("profile_insights") or {})
     validation = parse_metadata.get("profile_validation") or {}
@@ -207,8 +242,16 @@ def sync_document_structured_profile_claims(session: Session, profile: Profile, 
             )
         ).all()
     )
-    preserved_status = {
-        claim.normalized_value: claim.status
+    preserved_claims = {
+        _claim_raw_signature(claim.field_name, dict(claim.raw_value_json or claim.value_json or {})): {
+            "section": claim.section,
+            "value_json": dict(claim.value_json or {}),
+            "status": claim.status,
+            "resolver_action": claim.resolver_action,
+            "resolver_confidence": claim.resolver_confidence,
+            "resolver_evidence": list(claim.resolver_evidence or []),
+            "suggested_section": claim.suggested_section,
+        }
         for claim in existing_claims
         if claim.status in {"accepted", "edited", "rejected", "duplicate"}
     }
@@ -221,24 +264,37 @@ def sync_document_structured_profile_claims(session: Session, profile: Profile, 
 
     def add_claim(section: str, field_name: str, value_json: dict[str, Any]) -> None:
         nonlocal position
-        value_text = _claim_value_text(section, field_name, value_json)
+        raw_value_json = dict(value_json)
+        preserved = preserved_claims.get(_claim_raw_signature(field_name, raw_value_json))
+        stored_section = str(preserved["section"]) if preserved else section
+        stored_value_json = (
+            dict(preserved["value_json"])
+            if preserved and preserved["status"] in {"accepted", "edited"}
+            else raw_value_json
+        )
+        value_text = _claim_value_text(stored_section, field_name, stored_value_json)
         if not value_text:
             return
-        normalized_value = _claim_normalized_value(section, field_name, value_json)
+        normalized_value = _claim_normalized_value(stored_section, field_name, stored_value_json)
         claim = StructuredProfileClaim(
             profile_id=profile.id,
             document_id=document.id,
-            section=section,
+            section=stored_section,
             field_name=field_name,
-            value_json=value_json,
+            raw_value_json=raw_value_json,
+            value_json=stored_value_json,
             value_text=value_text,
             normalized_value=normalized_value,
-            source_text=_claim_source_text(section, value_json),
+            source_text=_claim_source_text(stored_section, stored_value_json),
             source_page=1 if document.mime_type == "application/pdf" else None,
             source_bbox={},
             parser_name=str(parser_name),
-            confidence=_claim_confidence(section, field_name, value_json, base_score=base_score),
-            status=preserved_status.get(normalized_value, "pending"),
+            confidence=_claim_confidence(section, field_name, raw_value_json, base_score=base_score),
+            resolver_confidence=float(preserved["resolver_confidence"]) if preserved else 0.0,
+            resolver_action=str(preserved["resolver_action"]) if preserved else "keep",
+            resolver_evidence=list(preserved["resolver_evidence"]) if preserved else [],
+            suggested_section=str(preserved["suggested_section"]) if preserved and preserved["suggested_section"] else None,
+            status=str(preserved["status"]) if preserved else "pending",
             position=position,
         )
         position += 1
@@ -262,6 +318,10 @@ def sync_document_structured_profile_claims(session: Session, profile: Profile, 
         for item in insights.get(section, []):
             add_claim(section, "entry", dict(item))
 
+    resolve_structured_profile_claims(session, profile, created, settings=settings)
+    for claim in created:
+        _refresh_claim_derived_fields(claim)
+
     parse_metadata["structured_profile_claims_sync_key"] = structured_profile_claim_sync_key(document)
     document.parse_metadata = parse_metadata
     session.flush()
@@ -276,6 +336,7 @@ def serialize_structured_profile_claim(claim: StructuredProfileClaim, document: 
         "document_filename": document.filename if document else None,
         "section": claim.section,
         "field_name": claim.field_name,
+        "raw_value_json": dict(claim.raw_value_json or {}),
         "value_json": dict(claim.value_json or {}),
         "value_text": claim.value_text,
         "normalized_value": claim.normalized_value,
@@ -284,6 +345,10 @@ def serialize_structured_profile_claim(claim: StructuredProfileClaim, document: 
         "source_bbox": dict(claim.source_bbox or {}),
         "parser_name": claim.parser_name,
         "confidence": claim.confidence,
+        "resolver_confidence": claim.resolver_confidence,
+        "resolver_action": claim.resolver_action,
+        "resolver_evidence": list(claim.resolver_evidence or []),
+        "suggested_section": claim.suggested_section,
         "status": claim.status,
         "position": claim.position,
         "created_at": claim.created_at,
@@ -329,25 +394,26 @@ def _build_profile_data_from_structured_claims(
     certification_items: list[dict[str, Any]] = []
 
     for claim in claims:
+        preview_section = claim.suggested_section or claim.section
         value_json = dict(claim.value_json or {})
-        if claim.section == "identity":
+        if preview_section == "identity":
             if claim.field_name in SCALAR_IDENTITY_FIELDS:
                 merged_identity = _merge_identity(merged_identity, {claim.field_name: value_json.get("value")})
             elif claim.field_name == "email":
                 merged_identity["emails"] = _unique_strings([*merged_identity.get("emails", []), _string_value(value_json.get("value"))])
             elif claim.field_name == "phone":
                 merged_identity["phones"] = _unique_strings([*merged_identity.get("phones", []), _string_value(value_json.get("value"))])
-        elif claim.section == "skills":
+        elif preview_section == "skills":
             canonical["skills"] = _unique_strings([*canonical["skills"], _string_value(value_json.get("name"))])
-        elif claim.section == "public_profiles":
+        elif preview_section == "public_profiles":
             canonical["public_profiles"] = _unique_links([*canonical["public_profiles"], value_json])
-        elif claim.section == "work_experience":
+        elif preview_section == "work_experience":
             work_items.append(value_json)
-        elif claim.section == "projects":
+        elif preview_section == "projects":
             project_items.append(value_json)
-        elif claim.section == "education":
+        elif preview_section == "education":
             education_items.append(value_json)
-        elif claim.section == "certifications":
+        elif preview_section == "certifications":
             certification_items.append(value_json)
 
     merged_identity = _normalize_identity(merged_identity)
@@ -368,6 +434,7 @@ def _build_profile_data_from_structured_claims(
     }
     source_documents_map: dict[str, dict[str, Any]] = {}
     for claim in claims:
+        preview_section = claim.suggested_section or claim.section
         document = documents.get(claim.document_id)
         if document is None:
             continue
@@ -380,8 +447,8 @@ def _build_profile_data_from_structured_claims(
                 "signals": [],
             },
         )
-        if claim.section not in entry["signals"]:
-            entry["signals"].append(claim.section)
+        if preview_section not in entry["signals"]:
+            entry["signals"].append(preview_section)
     canonical["source_documents"] = list(source_documents_map.values())
     canonical["auto_updated_at"] = dt.datetime.now(dt.UTC).isoformat()
     return _normalize_overview_data(canonical)
@@ -412,7 +479,95 @@ def build_review_preview_profile_from_structured_claims(session: Session, profil
     }
 
 
-def build_structured_profile_review(session: Session, profile: Profile, user: User) -> dict[str, Any]:
+def _build_profile_studio_diagnostics(
+    session: Session,
+    profile: Profile,
+    claims: list[StructuredProfileClaim],
+    documents: dict[str, Document],
+    settings: Settings | None = None,
+) -> dict[str, Any]:
+    reason_counts: dict[str, int] = defaultdict(int)
+    action_counts: dict[str, int] = defaultdict(int)
+    cache_hits = 0
+    cache_misses = 0
+    semantic_matches = 0
+    llm_arbiter_decisions = 0
+    section_suggestions = 0
+
+    for claim in claims:
+        action_counts[claim.resolver_action or "keep"] += 1
+        if claim.suggested_section and claim.suggested_section != claim.section:
+            section_suggestions += 1
+        for reason in claim.resolver_evidence or []:
+            reason_counts[reason] += 1
+            if reason == "embedding_similarity":
+                semantic_matches += 1
+            elif reason == "embedding_cache_hit":
+                cache_hits += 1
+            elif reason == "embedding_cache_miss":
+                cache_misses += 1
+            elif str(reason).startswith("llm_arbiter:"):
+                llm_arbiter_decisions += 1
+
+    correction_cache_total = len(
+        session.scalars(select(CorrectionEmbedding).where(CorrectionEmbedding.profile_id == profile.id)).all()
+    )
+
+    parser_sources = []
+    for document in documents.values():
+        parse_metadata = dict(document.parse_metadata or {})
+        diagnostics = parse_metadata.get("profile_parser_diagnostics") or {}
+        validation = parse_metadata.get("profile_validation") or {}
+        layout = diagnostics.get("layout") or {}
+        parser_sources.append(
+            {
+                "document_id": document.id,
+                "filename": document.filename,
+                "parser_backend": parse_metadata.get("profile_parser_backend"),
+                "extraction_mode": parse_metadata.get("profile_extraction_mode"),
+                "validation_status": validation.get("status"),
+                "validation_score": validation.get("score"),
+                "warning_count": len(validation.get("warnings") or []),
+                "page_count": int(layout.get("page_count") or parse_metadata.get("page_count") or 0),
+                "block_count": int(layout.get("block_count") or parse_metadata.get("block_count") or 0),
+                "section_counts": dict((diagnostics.get("validation") or {}).get("detected_sections") or {}),
+                "embedding_status": parse_metadata.get("embedding_status"),
+            }
+        )
+
+    parser_sources.sort(key=lambda item: (item["filename"].lower(), item["document_id"]))
+    top_reason_codes = dict(sorted(reason_counts.items(), key=lambda item: item[1], reverse=True)[:8])
+    return {
+        "correction": {
+            "embedding_retrieval_enabled": bool(settings and correction_embedding_available(settings)),
+            "correction_embedding_provider": correction_embedding_provider(settings) if settings and correction_embedding_available(settings) else "openai",
+            "correction_embedding_model": correction_embedding_model_name(settings) if settings and correction_embedding_available(settings) else None,
+            "correction_embedding_cache_entries": correction_cache_total,
+            "correction_embedding_cache_hits": cache_hits,
+            "correction_embedding_cache_misses": cache_misses,
+            "llm_arbiter_enabled": correction_arbiter_available(settings),
+            "llm_arbiter_provider": (settings.correction_arbiter_provider if settings else "openai"),
+            "llm_arbiter_model": (
+                (settings.ollama_arbiter_model if (settings and settings.correction_arbiter_provider == "ollama") else settings.correction_arbiter_model or settings.openai_model)
+                if settings and correction_arbiter_available(settings)
+                else None
+            ),
+            "llm_arbiter_decisions": llm_arbiter_decisions,
+            "semantic_matches": semantic_matches,
+            "section_suggestions": section_suggestions,
+            "action_counts": dict(sorted(action_counts.items())),
+            "top_reason_codes": top_reason_codes,
+        },
+        "parser_sources": parser_sources,
+    }
+
+
+def build_structured_profile_review(
+    session: Session,
+    profile: Profile,
+    user: User,
+    settings: Settings | None = None,
+) -> dict[str, Any]:
     claims = _claims_for_profile(session, profile)
     documents = {
         document.id: document
@@ -426,6 +581,24 @@ def build_structured_profile_review(session: Session, profile: Profile, user: Us
     extracted_profile = profile_overview_payload(profile, user, source="auto")
     review_preview_profile = build_review_preview_profile_from_structured_claims(session, profile, user)
     canonical_profile = profile_overview_payload(profile, user, source="canonical")
+    correction_summary = {
+        "auto_corrected": sum(1 for claim in claims if claim.resolver_action == "auto_correct" and claim.status != "duplicate"),
+        "suggested": sum(1 for claim in claims if claim.resolver_action == "suggest"),
+        "needs_review": sum(1 for claim in claims if claim.status == "pending" and claim.resolver_action in {"needs_review", "suggest"}),
+        "ready": sum(
+            1
+            for claim in claims
+            if claim.status not in {"rejected", "duplicate"}
+            and (
+                claim.status in {"accepted", "edited"}
+                or claim.resolver_action in {"auto_correct", "keep", "accepted_suggestion", "manual"}
+            )
+        ),
+        "duplicates": sum(1 for claim in claims if claim.status == "duplicate" or claim.resolver_action == "duplicate"),
+        "manual": sum(1 for claim in claims if claim.resolver_action == "manual" or claim.status == "edited"),
+        "rejected": sum(1 for claim in claims if claim.status == "rejected"),
+    }
+    diagnostics = _build_profile_studio_diagnostics(session, profile, claims, documents, settings=settings)
     return {
         "profile_id": profile.id,
         "profile_name": profile.name,
@@ -438,11 +611,13 @@ def build_structured_profile_review(session: Session, profile: Profile, user: Us
         "sections": [
             {
                 "section": section,
-                "label": section.replace("_", " ").title(),
+                "label": REVIEW_SECTION_LABELS.get(section, section.replace("_", " ").title()),
                 "claims": by_section.get(section, []),
             }
             for section in REVIEW_SECTION_ORDER
         ],
+        "correction_summary": correction_summary,
+        "diagnostics": diagnostics,
         "extracted_profile": extracted_profile,
         "review_preview_profile": review_preview_profile,
         "canonical_profile": canonical_profile,
@@ -469,17 +644,37 @@ def update_structured_profile_claim(
     section: str | None = None,
     value_json: dict[str, Any] | None = None,
 ) -> StructuredProfileClaim:
+    previous_value_json = dict(claim.value_json or {})
+    previous_section = claim.section
+    previous_suggested_section = claim.suggested_section
+
     if section:
         claim.section = section
+    section_changed = claim.section != previous_section
+    accepted_suggestion = bool(section_changed and previous_suggested_section and claim.section == previous_suggested_section)
+    manual_section_override = bool(section_changed and not accepted_suggestion)
     if value_json is not None:
         claim.value_json = value_json
-        claim.value_text = _claim_value_text(claim.section, claim.field_name, value_json)
-        claim.normalized_value = _claim_normalized_value(claim.section, claim.field_name, value_json)
-        claim.source_text = _claim_source_text(claim.section, value_json)
+    value_changed = value_json is not None and dict(claim.value_json or {}) != previous_value_json
+    if section_changed or value_json is not None:
+        _refresh_claim_derived_fields(claim)
+    if accepted_suggestion:
+        claim.suggested_section = None
+        claim.resolver_evidence = list(dict.fromkeys([*(claim.resolver_evidence or []), "accepted_suggestion"]))
+        if claim.resolver_action == "suggest":
+            claim.resolver_action = "accepted_suggestion"
+            claim.resolver_confidence = max(float(claim.resolver_confidence or 0.0), float(claim.confidence or 0.0))
+    elif manual_section_override or value_changed:
+        claim.suggested_section = None
+        claim.resolver_action = "manual"
+        claim.resolver_confidence = 1.0
+        claim.resolver_evidence = ["manual_edit"]
     if status:
         claim.status = status
-    elif value_json is not None:
+    elif value_changed or manual_section_override:
         claim.status = "edited"
+    elif accepted_suggestion and claim.status == "pending":
+        claim.status = "accepted"
     claim.updated_at = dt.datetime.now(dt.UTC)
     session.flush()
     return claim
@@ -523,6 +718,7 @@ def build_canonical_profile_from_structured_claims(session: Session, profile: Pr
 def save_canonical_profile_from_structured_claims(session: Session, profile: Profile, user: User | None = None) -> dict[str, Any]:
     container = _normalize_profile_container(profile.profile_data)
     container["canonical"] = build_canonical_profile_from_structured_claims(session, profile, user)
+    sync_canonical_values_from_overview(session, profile, container["canonical"])
     profile.profile_data = container
     profile.updated_at = dt.datetime.now(dt.UTC)
     session.flush()

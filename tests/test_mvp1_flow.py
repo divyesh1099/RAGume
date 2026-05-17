@@ -84,7 +84,7 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
             Backend and document AI engineer building OCR, RAG, and workflow automation systems.
 
             SKILLS
-            Python, FastAPI, OCR, Redis, LayoutLMv3, Docker, PostgreSQL, RAG
+            Python, Fast API, OCR, Redis, LayoutLMv3, Docker, postgres, RAG
 
             WORK EXPERIENCE
             Document AI Engineer | Neuralit | Jan 2023 - Present | Bengaluru, India
@@ -142,6 +142,25 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
             assert studio_review["extracted_profile"]["profile_mode"] == "auto"
             assert studio_review["review_preview_profile"]["profile_mode"] == "review"
             assert len(studio_review["review_preview_profile"]["work_experience"]) >= 1
+            assert studio_review["correction_summary"]["auto_corrected"] >= 2
+            assert studio_review["diagnostics"]["correction"]["embedding_retrieval_enabled"] is False
+            assert len(studio_review["diagnostics"]["parser_sources"]) == 1
+            assert any("github.com/divyesh" == link["url"].removeprefix("https://").removeprefix("http://") for link in studio_review["review_preview_profile"]["public_profiles"])
+            assert all("fastpdf-pipeline" not in link["url"] for link in studio_review["review_preview_profile"]["public_profiles"])
+            assert any(
+                any("fastpdf-pipeline" in link for link in project.get("links", []))
+                for project in studio_review["review_preview_profile"]["projects"]
+            )
+
+            skill_section_initial = next(section for section in studio_review["sections"] if section["section"] == "skills")
+            postgres_claim = next(claim for claim in skill_section_initial["claims"] if claim["raw_value_json"].get("name") == "postgres")
+            fastapi_claim = next(claim for claim in skill_section_initial["claims"] if claim["raw_value_json"].get("name") == "Fast API")
+            assert postgres_claim["value_json"]["name"] == "PostgreSQL"
+            assert postgres_claim["resolver_action"] == "auto_correct"
+            assert fastapi_claim["value_json"]["name"] == "FastAPI"
+            assert fastapi_claim["resolver_action"] == "auto_correct"
+            assert "PostgreSQL" in studio_review["review_preview_profile"]["skills"]
+            assert "FastAPI" in studio_review["review_preview_profile"]["skills"]
 
             identity_section = next(section for section in studio_review["sections"] if section["section"] == "identity")
             editable_identity_claim = next(claim for claim in identity_section["claims"] if claim["field_name"] == "headline")
@@ -203,10 +222,15 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
             assert overview["identity"]["headline"] is not None
             assert any("linkedin.com" in link["url"] for link in overview["public_profiles"])
             assert any("github.com" in link["url"] for link in overview["public_profiles"])
+            assert all("fastpdf-pipeline" not in link["url"] for link in overview["public_profiles"])
             assert any(skill.lower() == "python" for skill in overview["skills"])
             assert len(overview["work_experience"]) >= 1
             assert len(overview["education"]) >= 1
             assert len(overview["projects"]) >= 1
+            assert any(
+                any("fastpdf-pipeline" in link for link in project.get("links", []))
+                for project in overview["projects"]
+            )
             assert overview["documents_total"] == 1
             assert overview["source_documents"][0]["document_id"] == document_id
 

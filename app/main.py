@@ -59,6 +59,7 @@ from app.services.auth import (
 )
 from app.services.claim_extractor import extract_claims_for_document, fetch_chunk_evidence
 from app.services.claim_utils import assess_claim_evidence, extract_claim_entities
+from app.services.correction_resolver import maybe_record_correction_rule
 from app.services.documents import cleanup_document_storage, delete_document_evidence, ingest_uploaded_document
 from app.services.embeddings import embedding_available
 from app.services.job_descriptions import parse_uploaded_job_description
@@ -293,7 +294,7 @@ def auto_process_document(
     parse_metadata["profile_parser_label"] = diagnostics.get("parser_backend_label")
     document.parse_metadata = parse_metadata
     session.flush()
-    sync_document_structured_profile_claims(session, profile, document)
+    sync_document_structured_profile_claims(session, profile, document, settings=settings)
 
     focus_areas = insights.get("skills", [])[:8]
     _, claims, _, claim_warnings = extract_claims_for_document(
@@ -351,7 +352,7 @@ def refresh_document_profile(
     parse_metadata["profile_parser_label"] = diagnostics.get("parser_backend_label")
     document.parse_metadata = parse_metadata
     session.flush()
-    sync_document_structured_profile_claims(session, profile, document)
+    sync_document_structured_profile_claims(session, profile, document, settings=settings)
 
     rebuild_profile_overview(session, profile, settings)
     session.commit()
@@ -669,10 +670,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     settings=app_settings,
                 )
             if document_structured_claims_need_sync(session, profile, document):
-                sync_document_structured_profile_claims(session, profile, document)
+                sync_document_structured_profile_claims(session, profile, document, settings=app_settings)
         session.commit()
         session.refresh(profile)
-        return StructuredProfileReviewRead(**build_structured_profile_review(session, profile, current_user))
+        return StructuredProfileReviewRead(**build_structured_profile_review(session, profile, current_user, settings=app_settings))
 
     @app.patch("/profile/studio/claims/{claim_id}", response_model=StructuredProfileClaimRead)
     async def update_profile_studio_claim_route(
@@ -691,6 +692,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             section=payload.section,
             value_json=payload.value_json,
         )
+        if claim.status in {"accepted", "edited"}:
+            maybe_record_correction_rule(session, profile, claim)
         session.commit()
         session.refresh(claim)
         document = session.get(Document, claim.document_id)
