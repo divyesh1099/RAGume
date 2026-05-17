@@ -96,6 +96,14 @@ class Profile(Base):
         back_populates="profile",
         cascade="all, delete-orphan",
     )
+    claim_groups: Mapped[list["ClaimGroup"]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+    )
+    profile_anomalies: Mapped[list["ProfileAnomaly"]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+    )
 
 
 class Chunk(Base):
@@ -193,6 +201,9 @@ class StructuredProfileClaim(Base):
     resolver_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     resolver_action: Mapped[str] = mapped_column(String(32), default="keep", nullable=False, index=True)
     resolver_evidence: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    admission_status: Mapped[str] = mapped_column(String(24), default="needs_review", nullable=False, index=True)
+    admission_reason: Mapped[str | None] = mapped_column(String(120))
+    admission_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     suggested_section: Mapped[str | None] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False, index=True)
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -255,6 +266,50 @@ class CorrectionEmbedding(Base):
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     profile: Mapped["Profile"] = relationship(back_populates="correction_embeddings")
+
+
+class ClaimGroup(Base):
+    __tablename__ = "claim_groups"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.id"), nullable=False, index=True)
+    group_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    canonical_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    canonical_value: Mapped[str] = mapped_column(Text, nullable=False)
+    canonical_value_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    merge_action: Mapped[str] = mapped_column(String(80), default="merge", nullable=False)
+    review_reason: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(24), default="merged", nullable=False, index=True)
+    claim_ids_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    group_metadata: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    profile: Mapped["Profile"] = relationship(back_populates="claim_groups")
+    anomalies: Mapped[list["ProfileAnomaly"]] = relationship(
+        back_populates="claim_group",
+        cascade="all, delete-orphan",
+    )
+
+
+class ProfileAnomaly(Base):
+    __tablename__ = "profile_anomalies"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.id"), nullable=False, index=True)
+    claim_group_id: Mapped[str | None] = mapped_column(ForeignKey("claim_groups.id"), index=True)
+    anomaly_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    severity: Mapped[str] = mapped_column(String(24), default="medium", nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    candidate_values_json: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
+    recommended_action: Mapped[str] = mapped_column(String(80), default="review", nullable=False)
+    status: Mapped[str] = mapped_column(String(24), default="open", nullable=False, index=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    profile: Mapped["Profile"] = relationship(back_populates="profile_anomalies")
+    claim_group: Mapped["ClaimGroup | None"] = relationship(back_populates="anomalies")
 
 
 class ProfileGraphNode(Base):

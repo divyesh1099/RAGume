@@ -70,7 +70,10 @@ ROLE_HINTS = {
     "manager",
     "intern",
     "consultant",
+    "freelance",
+    "freelancing",
 }
+ROLE_WORD_PATTERN = re.compile(r"\b(" + "|".join(sorted(ROLE_HINTS)) + r")\b", re.IGNORECASE)
 SAFE_AUTO_FIELD_TYPES = {"email", "phone", "url", "skill", "degree", "company"}
 ARBITER_FIELD_TYPES = {"skill", "company", "role", "degree"}
 
@@ -918,7 +921,21 @@ def _role_decision(
     if best is None:
         action = action_override if action_override in {"keep", "needs_review"} else "keep"
         return ResolverDecision(corrected_value_json={"value": raw_value}, resolver_action=action, resolver_confidence=parser_confidence)
-    action = action_override or ("auto_correct" if score >= 0.96 and best.alias_score >= 0.95 else "suggest" if score >= 0.74 else "needs_review")
+    exact_title_match = (
+        best.source in {"builtin_alias", "canonical_alias"}
+        or any(reason in {"exact_lookup_match", "canonical_alias_match", "builtin_alias_match"} for reason in (evidence or best.evidence or []))
+    )
+    raw_title_is_specific = bool(ROLE_WORD_PATTERN.search(raw_value)) and len(_normalize_lookup(raw_value).split()) >= 2
+    candidate_changes_title = _normalize_lookup(best.value) != _normalize_lookup(raw_value)
+    if raw_title_is_specific and candidate_changes_title and not exact_title_match:
+        keep_confidence = max(parser_confidence, 0.82 if parser_confidence >= 0.55 else 0.68)
+        return ResolverDecision(
+            corrected_value_json={"value": raw_value},
+            resolver_action="keep",
+            resolver_confidence=keep_confidence,
+            resolver_evidence=["parser_specific_role", "weak_role_candidate_rejected"],
+        )
+    action = action_override or ("auto_correct" if score >= 0.96 and exact_title_match else "suggest" if score >= 0.74 else "needs_review")
     return ResolverDecision(
         corrected_value_json={"value": best.value},
         resolver_action=action,
@@ -955,9 +972,19 @@ def _degree_decision(
     if best is None:
         action = action_override if action_override in {"keep", "needs_review"} else "keep"
         return ResolverDecision(corrected_value_json={"value": raw_value}, resolver_action=action, resolver_confidence=parser_confidence)
-    action = action_override or _safe_auto_action("degree", score, best.alias_score >= 0.95)
+    exact_degree_match = (
+        best.alias_score >= 0.95
+        or best.source in {"builtin_alias", "canonical_alias", "correction_rule"}
+        or any(reason in {"exact_lookup_match", "canonical_alias_match", "builtin_alias_match"} for reason in (evidence or best.evidence or []))
+    )
+    fuzzy_only_degree_match = best.source in {"builtin_fuzzy", "canonical_fuzzy"} and not exact_degree_match
+    action = action_override or _safe_auto_action("degree", score, exact_degree_match)
+    corrected_value = best.value
+    if fuzzy_only_degree_match:
+        action = "needs_review"
+        corrected_value = raw_value
     return ResolverDecision(
-        corrected_value_json={"value": best.value},
+        corrected_value_json={"value": corrected_value},
         resolver_action=action,
         resolver_confidence=score,
         resolver_evidence=evidence or best.evidence or [best.source],

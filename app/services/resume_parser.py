@@ -60,6 +60,7 @@ SECTION_ALIASES = {
     "projects": {"projects", "selected projects", "portfolio"},
     "certifications": {"certifications", "certification", "licenses"},
     "achievements": {"achievements", "awards", "honors"},
+    "leadership": {"leadership", "open source", "open source & leadership", "community leadership"},
     "languages": {"languages"},
 }
 GENERIC_HEADINGS = set().union(*SECTION_ALIASES.values())
@@ -79,6 +80,42 @@ DEFAULT_SCHEMA = {
     "work_experience": [],
     "projects": [],
     "certifications": [],
+}
+SKILL_HEADING_BLACKLIST = {
+    "languages",
+    "language",
+    "tools",
+    "technical skills",
+    "soft skills",
+    "cloud",
+    "data",
+    "skills",
+    "programming",
+    "backend",
+    "frontend",
+    "front end",
+}
+SKILL_WHITELIST = {
+    "C#",
+    "C++",
+    "CSS",
+    "SQL",
+    "AWS",
+    "GCP",
+    "NLP",
+    "OCR",
+    "RAG",
+    "LLM",
+    "BERT",
+    "T5",
+    "MVC",
+    "Git",
+    "Helm",
+    "Flask",
+    "Kafka",
+    "Redis",
+    "NSQ",
+    "MLflow",
 }
 
 
@@ -182,6 +219,10 @@ def _clean_skill_candidate(value: str) -> str | None:
     cleaned = _clean_text(value).strip(" ,.;:|")
     cleaned = cleaned.replace("Scikit Learn", "Scikit-Learn")
     if not cleaned:
+        return None
+    if cleaned in SKILL_WHITELIST:
+        return cleaned
+    if cleaned.lower() in SKILL_HEADING_BLACKLIST:
         return None
     alnum = re.sub(r"[^A-Za-z0-9+#./-]", "", cleaned)
     if len(alnum) < 3 and cleaned not in {"C", "C#", "C++", "JS"}:
@@ -574,6 +615,23 @@ def _best_entity(grouped: dict[str, list[dict[str, Any]]], entity_type: str) -> 
     return sorted(items, key=lambda item: (-item["score"], -len(item["text"])))[0]["text"]
 
 
+def _block_id(block: dict[str, Any]) -> str:
+    return (
+        f"p{int(block.get('page') or 0)}:"
+        f"c{block.get('column') if block.get('column') is not None else 'x'}:"
+        f"y{int(float(block.get('y0') or 0.0))}:"
+        f"x{int(float(block.get('x0') or 0.0))}"
+    )
+
+
+def _visual_group_id(block: dict[str, Any]) -> str:
+    return (
+        f"p{int(block.get('page') or 0)}:"
+        f"c{block.get('column') if block.get('column') is not None else 'x'}:"
+        f"g{int(float(block.get('y0') or 0.0) // 36)}"
+    )
+
+
 def _extract_date_range(text: str) -> tuple[str | None, str | None]:
     match = DATE_RANGE_PATTERN.search(text)
     if not match:
@@ -669,6 +727,12 @@ def _parse_work_experience(
                     "summary": current.get("summary"),
                     "highlights": highlights,
                     "technologies": current.get("technologies", []),
+                    "source_page": current.get("source_page"),
+                    "visual_group_id": current.get("visual_group_id"),
+                    "title_block_id": current.get("title_block_id"),
+                    "org_block_id": current.get("org_block_id"),
+                    "date_block_id": current.get("date_block_id"),
+                    "bullet_block_ids": current.get("bullet_block_ids", []),
                     "source_document_ids": [document_id],
                 }
             )
@@ -697,6 +761,7 @@ def _parse_work_experience(
             location = _best_entity(grouped, "LOCATION")
             if location and location.lower() in {"github", "linkedin", "leetcode"}:
                 location = None
+            block_identifier = _block_id(block)
             current = {
                 "title": header_title,
                 "organization": header_company,
@@ -705,6 +770,12 @@ def _parse_work_experience(
                 "end_date": end_date,
                 "body_lines": body_lines,
                 "technologies": _unique_skill_strings(entity["text"] for entity in grouped.get("SKILL", [])),
+                "source_page": int(block.get("page") or 0),
+                "visual_group_id": _visual_group_id(block),
+                "title_block_id": block_identifier,
+                "org_block_id": block_identifier if header_company else None,
+                "date_block_id": block_identifier if start_date or end_date else None,
+                "bullet_block_ids": [],
             }
             if not current["title"] and ROLE_WORD_PATTERN.search(header or text):
                 current["title"] = header or text
@@ -712,6 +783,7 @@ def _parse_work_experience(
 
         if current is not None:
             current["body_lines"].extend(block.get("lines", []))
+            current["bullet_block_ids"].append(_block_id(block))
 
     finalize()
     return entries
@@ -911,6 +983,20 @@ def _identity_from_header(
             if EMAIL_PATTERN.search(cleaned) or URL_PATTERN.search(cleaned) or PHONE_PATTERN.search(cleaned):
                 continue
             if "|" in cleaned:
+                pipe_parts = [_clean_text(part) for part in cleaned.split("|") if _clean_text(part)]
+                headline_from_pipe = next(
+                    (
+                        part
+                        for part in pipe_parts
+                        if ROLE_WORD_PATTERN.search(part)
+                        and not DATE_RANGE_PATTERN.search(part)
+                        and not EMAIL_PATTERN.search(part)
+                        and not URL_PATTERN.search(part)
+                    ),
+                    None,
+                )
+                if headline_from_pipe:
+                    headline_candidates.append(headline_from_pipe)
                 continue
             if full_name and cleaned.upper() == full_name.upper():
                 continue
@@ -928,13 +1014,7 @@ def _identity_from_header(
             summary_lines.extend(block.get("lines", []))
         summary = _clean_text(" ".join(summary_lines[:4])) or None
 
-    if not summary and work_experience:
-        summary = work_experience[0].get("summary")
-
     headline = next((candidate for candidate in headline_candidates if candidate), None)
-    if not headline and work_experience:
-        first_role = work_experience[0]
-        headline = " · ".join(part for part in (first_role.get("title"), first_role.get("organization")) if part) or None
 
     return {
         "full_name": full_name,

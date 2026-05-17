@@ -371,12 +371,18 @@ a {
 
 .metric-card span,
 .field-label,
+.field-label-inline,
 .profile-meta-line,
 .auth-meta,
 .wiki-box-title {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.field-label-inline {
+  display: inline-flex;
+  align-items: center;
 }
 
 .metric-card strong {
@@ -401,6 +407,11 @@ input,
 select {
   min-height: 44px;
   padding: 0.78rem 0.9rem;
+}
+
+.compact-select {
+  width: auto;
+  min-width: 170px;
 }
 
 textarea {
@@ -746,6 +757,10 @@ select:disabled,
   align-content: start;
 }
 
+.diagnostics-span-full {
+  grid-column: 1 / -1;
+}
+
 .comparison-grid {
   display: grid;
   gap: 12px;
@@ -764,6 +779,19 @@ select:disabled,
 .detail-card-title {
   font-size: 0.92rem;
   font-weight: 800;
+}
+
+.frame-group {
+  display: grid;
+  gap: 10px;
+}
+
+.frame-group-title {
+  font-weight: 800;
+}
+
+.frame-record {
+  background: var(--surface);
 }
 
 .detail-line {
@@ -977,6 +1005,33 @@ select:disabled,
 
 .studio-section-tab:hover {
   background: var(--surface);
+}
+
+.fusion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.fusion-panel {
+  min-width: 0;
+}
+
+.fusion-entry {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.fusion-entry-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .studio-section-tab.is-active {

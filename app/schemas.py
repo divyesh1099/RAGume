@@ -60,6 +60,21 @@ class DocumentIngestResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class DocumentBatchFailureRead(BaseModel):
+    filename: str
+    detail: str
+
+
+class DocumentBatchIngestResponse(BaseModel):
+    uploads: list[DocumentIngestResponse] = Field(default_factory=list)
+    failures: list[DocumentBatchFailureRead] = Field(default_factory=list)
+    documents_created: int = 0
+    chunks_created: int = 0
+    auto_approved_claims: int = 0
+    auto_profile_sections: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class DocumentReparseResponse(BaseModel):
     document: DocumentRead
     auto_profile_sections: list[str] = Field(default_factory=list)
@@ -279,6 +294,8 @@ class ProfileIdentityRead(BaseModel):
     full_name: str | None = None
     headline: str | None = None
     summary: str | None = None
+    current_position: str | None = None
+    target_headline: str | None = None
     location: str | None = None
     emails: list[str] = Field(default_factory=list)
     phones: list[str] = Field(default_factory=list)
@@ -307,6 +324,9 @@ class ProfileSourceDocumentRead(BaseModel):
     document_id: str
     filename: str
     created_at: str | None = None
+    document_role: str | None = None
+    profile_focus: str | None = None
+    source_quality: float | None = None
     signals: list[str] = Field(default_factory=list)
 
 
@@ -314,6 +334,8 @@ class ProfileOverviewRead(BaseModel):
     profile_id: str
     profile_name: str
     profile_mode: str = "auto"
+    profile_focus: str | None = None
+    profile_view: str | None = None
     identity: ProfileIdentityRead
     skills: list[str] = Field(default_factory=list)
     public_profiles: list[ProfileLinkRead] = Field(default_factory=list)
@@ -321,6 +343,8 @@ class ProfileOverviewRead(BaseModel):
     work_experience: list[ProfileItemRead] = Field(default_factory=list)
     projects: list[ProfileItemRead] = Field(default_factory=list)
     certifications: list[ProfileItemRead] = Field(default_factory=list)
+    available_views: list[str] = Field(default_factory=list)
+    mode_summaries: dict[str, str] = Field(default_factory=dict)
     source_documents: list[ProfileSourceDocumentRead] = Field(default_factory=list)
     documents_total: int = 0
     auto_updated_at: str | None = None
@@ -352,6 +376,9 @@ class StructuredProfileClaimRead(BaseModel):
     resolver_confidence: float = 0.0
     resolver_action: str = "keep"
     resolver_evidence: list[str] = Field(default_factory=list)
+    admission_status: str = "needs_review"
+    admission_reason: str | None = None
+    admission_score: float = 0.0
     suggested_section: str | None = None
     status: str
     position: int
@@ -393,6 +420,9 @@ class ProfileStudioParserDiagnosticRead(BaseModel):
     filename: str
     parser_backend: str | None = None
     extraction_mode: str | None = None
+    document_role: str | None = None
+    profile_focus: str | None = None
+    source_quality: float | None = None
     validation_status: str | None = None
     validation_score: int | None = None
     warning_count: int = 0
@@ -405,6 +435,50 @@ class ProfileStudioParserDiagnosticRead(BaseModel):
 class ProfileStudioDiagnosticsRead(BaseModel):
     correction: ProfileStudioCorrectionDiagnosticsRead
     parser_sources: list[ProfileStudioParserDiagnosticRead] = Field(default_factory=list)
+    record_frames: list[dict] = Field(default_factory=list)
+
+
+class ClaimGroupRead(BaseModel):
+    id: str
+    profile_id: str
+    group_type: str
+    canonical_key: str
+    canonical_value: str
+    canonical_value_json: dict = Field(default_factory=dict)
+    confidence: float = 0.0
+    merge_action: str = "merge"
+    review_reason: str | None = None
+    status: str = "merged"
+    claim_ids: list[str] = Field(default_factory=list)
+    group_metadata: dict = Field(default_factory=dict)
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+
+class ProfileAnomalyRead(BaseModel):
+    id: str
+    profile_id: str
+    claim_group_id: str | None = None
+    anomaly_type: str
+    severity: str
+    message: str
+    candidate_values_json: list[dict] = Field(default_factory=list)
+    recommended_action: str
+    status: str
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+
+class ProfileFusionRead(BaseModel):
+    generated_at: dt.datetime
+    summary: dict[str, int] = Field(default_factory=dict)
+    merged_groups: list[ClaimGroupRead] = Field(default_factory=list)
+    review_groups: list[ClaimGroupRead] = Field(default_factory=list)
+    critical_review_groups: list[ClaimGroupRead] = Field(default_factory=list)
+    optional_review_groups: list[ClaimGroupRead] = Field(default_factory=list)
+    ignored_groups: list[ClaimGroupRead] = Field(default_factory=list)
+    anomalies: list[ProfileAnomalyRead] = Field(default_factory=list)
+    preview_profile: ProfileOverviewRead
 
 
 class StructuredProfileReviewRead(BaseModel):
@@ -422,6 +496,12 @@ class StructuredProfileReviewRead(BaseModel):
     extracted_profile: ProfileOverviewRead
     review_preview_profile: ProfileOverviewRead
     canonical_profile: ProfileOverviewRead
+    fusion: ProfileFusionRead
+
+
+class ProfileFusionResponseRead(ProfileFusionRead):
+    profile_id: str
+    profile_name: str
 
 
 class WikiReferenceRead(BaseModel):

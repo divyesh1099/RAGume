@@ -299,6 +299,259 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
     asyncio.run(scenario())
 
 
+def test_evidence_fusion_dedupes_noise_and_flags_conflicts(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        settings = Settings(
+            database_url=f"sqlite:///{tmp_path / 'fusion.db'}",
+            uploads_dir=str(tmp_path / "uploads"),
+            enable_llm_extractor=False,
+            enable_embedding_retrieval=False,
+            enable_resume_ner=False,
+            enable_resume_gpt_formatter=False,
+        )
+        app = create_app(settings)
+        transport = httpx.ASGITransport(app=app)
+
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            profile = await register_and_create_profile(client, email="fusion@example.com", profile_name="Fusion Profile")
+            profile_id = profile["id"]
+
+            primary_resume = """
+            Divyesh Vishwakarma
+            AI/ML Developer | Mumbai, India
+            divyesh1099@gmail.com | +91 9920192856 | https://linkedin.com/in/divyesh-vishwakarma-621197175 | https://github.com/divyesh1099 | https://divyeshvishwakarma.com
+
+            SKILLS
+            Python, Fast API, postgres, /CD, peline, Lang, OCR, Docker
+
+            WORK EXPERIENCE
+            AI/ML Developer | Pal India | Jan 2024 - Present | Mumbai, India
+            Built OCR and FastAPI services for document workflows.
+
+            EDUCATION
+            Bachelor of Technology in Computer Science
+            Bharati Vidyapeeth College of Engineering
+            GPA 8.34
+
+            PROJECTS
+            RAGume
+            Built a resume customization workflow.
+            https://github.com/divyesh1099/ragume
+            """
+
+            secondary_resume = """
+            Divyesh Vishwakarma
+            Machine Learning Developer | Mumbai, India
+            divyesh1099@gmail.com | +91 99201 92856 | https://www.linkedin.com/in/divyesh-vishwakarma-621197175/ | https://github.com/divyesh1099 | https://anitab.org
+
+            SKILLS
+            Python, FastAPI, PostgreSQL, OCR, Docker
+
+            WORK EXPERIENCE
+            Machine Learning Developer | Pal India | 2024 - Present | Mumbai, India
+            Built ML pipelines and OCR review tooling.
+
+            EDUCATION
+            Bachelor of Computer Science
+            Bharati Vidyapeeth College of Engineering
+            """
+
+            for index, resume_text in enumerate((primary_resume, secondary_resume), start=1):
+                upload_response = await client.post(
+                    "/documents/upload",
+                    data={"profile_id": profile_id, "parser_backend": "auto"},
+                    files={"file": (f"resume-{index}.txt", resume_text, "text/plain")},
+                )
+                assert upload_response.status_code == 200
+
+            review_response = await client.get(f"/profile/studio/review?profile_id={profile_id}")
+            assert review_response.status_code == 200
+            review = review_response.json()
+            fusion = review["fusion"]
+            preview = fusion["preview_profile"]
+
+            assert fusion["summary"]["merged_total"] >= 3
+            assert fusion["summary"]["review_total"] >= 2
+            assert fusion["summary"]["ignored_total"] >= 1 or review["correction_summary"]["rejected"] >= 1
+
+            assert preview["identity"]["emails"] == ["divyesh1099@gmail.com"]
+            assert len([link for link in preview["public_profiles"] if "linkedin.com/in/divyesh-vishwakarma-621197175" in link["url"]]) == 1
+            assert all("anitab.org" not in link["url"] for link in preview["public_profiles"])
+            assert any(link["url"] == "https://github.com/divyesh1099" for link in preview["public_profiles"])
+
+            skill_names = {skill.lower() for skill in preview["skills"]}
+            assert "python" in skill_names
+            assert "fastapi" in skill_names
+            assert "postgresql" in skill_names
+            assert "/cd".lower() not in skill_names
+            assert "peline" not in skill_names
+            assert "lang" not in skill_names
+
+            review_reasons = {group["review_reason"] for group in fusion["review_groups"]}
+            assert "same_company_different_roles" in review_reasons
+            assert "degree_wording_conflict" in review_reasons or "portfolio_conflict" in review_reasons
+
+            ignored_text = " ".join(group["canonical_value"].lower() for group in fusion["ignored_groups"])
+            rejected_noise_values = " ".join(
+                str(claim["raw_value_json"].get("name", "")).lower()
+                for section in review["sections"]
+                for claim in section["claims"]
+                if claim.get("admission_status") == "reject_noise"
+            )
+            assert (
+                "lang" in ignored_text
+                or "peline" in ignored_text
+                or "/cd" in ignored_text
+                or "lang" in rejected_noise_values
+                or "peline" in rejected_noise_values
+                or "/cd" in rejected_noise_values
+            )
+
+            save_response = await client.post(f"/profile/studio/save?profile_id={profile_id}")
+            assert save_response.status_code == 200
+            saved = save_response.json()
+            saved_skills = {skill.lower() for skill in saved["skills"]}
+            assert "fastapi" in saved_skills
+            assert "postgresql" in saved_skills
+            assert "peline" not in saved_skills
+            assert all("anitab.org" not in link["url"] for link in saved["public_profiles"])
+            assert len([link for link in saved["public_profiles"] if "linkedin.com/in/divyesh-vishwakarma-621197175" in link["url"]]) == 1
+
+    asyncio.run(scenario())
+
+
+def test_delete_evidence_rolls_back_saved_canonical_profile(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        settings = Settings(
+            database_url=f"sqlite:///{tmp_path / 'rollback.db'}",
+            uploads_dir=str(tmp_path / "uploads"),
+            enable_llm_extractor=False,
+            enable_embedding_retrieval=False,
+            enable_resume_ner=False,
+            enable_resume_gpt_formatter=False,
+        )
+        app = create_app(settings)
+        transport = httpx.ASGITransport(app=app)
+
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            profile = await register_and_create_profile(
+                client,
+                email="rollback@example.com",
+                profile_name="Rollback Profile",
+            )
+            profile_id = profile["id"]
+
+            first_resume = """
+            Divyesh Vishwakarma
+            Document AI Engineer | Bengaluru, India
+            rollback@example.com | +91 98765 43210 | https://linkedin.com/in/divyesh | https://github.com/divyesh
+
+            SKILLS
+            Python, OCR, LayoutLMv3, Redis, Docker
+
+            WORK EXPERIENCE
+            Document AI Engineer | Neuralit | Jan 2023 - Present | Bengaluru, India
+            Built OCR and LayoutLMv3 workflows for 12,000+ pages.
+
+            PROJECTS
+            FastPDF Pipeline
+            Built a page-level PDF processing pipeline using Python, Redis, OCR, and LayoutLMv3.
+            https://github.com/divyesh/fastpdf-pipeline
+            """
+
+            second_resume = """
+            Divyesh Vishwakarma
+            Platform Engineer | Pune, India
+            rollback@example.com | +91 98765 43210 | https://linkedin.com/in/divyesh | https://github.com/divyesh
+
+            SKILLS
+            Python, React, PostgreSQL, Docker
+
+            WORK EXPERIENCE
+            Platform Engineer | Internal Tools | Feb 2022 - Dec 2022 | Pune, India
+            Built internal developer tooling with React and PostgreSQL.
+
+            PROJECTS
+            Platform Toolkit
+            Built Docker-based internal services with React and PostgreSQL.
+            https://github.com/divyesh/platform-toolkit
+            """
+
+            upload_one = await client.post(
+                "/documents/upload",
+                data={"profile_id": profile_id, "parser_backend": "auto"},
+                files={"file": ("doc-ai.txt", first_resume, "text/plain")},
+            )
+            assert upload_one.status_code == 200
+            first_document_id = upload_one.json()["document"]["id"]
+
+            upload_two = await client.post(
+                "/documents/upload",
+                data={"profile_id": profile_id, "parser_backend": "auto"},
+                files={"file": ("platform.txt", second_resume, "text/plain")},
+            )
+            assert upload_two.status_code == 200
+            second_document_id = upload_two.json()["document"]["id"]
+
+            save_response = await client.post(f"/profile/studio/save?profile_id={profile_id}")
+            assert save_response.status_code == 200
+            saved = save_response.json()
+            assert saved["profile_mode"] == "canonical"
+            assert saved["documents_total"] == 2
+            assert any(
+                any("fastpdf-pipeline" in link for link in project.get("links", []))
+                for project in saved["projects"]
+            )
+            assert any(
+                any("platform-toolkit" in link for link in project.get("links", []))
+                for project in saved["projects"]
+            )
+
+            delete_second = await client.delete(f"/documents/{second_document_id}?profile_id={profile_id}")
+            assert delete_second.status_code == 200
+
+            overview_after_one_delete = await client.get(f"/profile/overview?profile_id={profile_id}")
+            assert overview_after_one_delete.status_code == 200
+            rolled_back = overview_after_one_delete.json()
+            assert rolled_back["profile_mode"] == "canonical"
+            assert rolled_back["documents_total"] == 1
+            assert [item["document_id"] for item in rolled_back["source_documents"]] == [first_document_id]
+            assert any(
+                any("fastpdf-pipeline" in link for link in project.get("links", []))
+                for project in rolled_back["projects"]
+            )
+            assert all(
+                all("platform-toolkit" not in link for link in project.get("links", []))
+                for project in rolled_back["projects"]
+            )
+            skill_names = {skill.lower() for skill in rolled_back["skills"]}
+            assert "ocr" in skill_names
+            assert "react" not in skill_names
+            assert all(
+                (item.get("organization") or "").lower() != "internal tools"
+                for item in rolled_back["work_experience"]
+            )
+
+            studio_after_one_delete = await client.get(f"/profile/studio/review?profile_id={profile_id}")
+            assert studio_after_one_delete.status_code == 200
+            assert studio_after_one_delete.json()["fusion"]["preview_profile"]["documents_total"] == 1
+
+            delete_first = await client.delete(f"/documents/{first_document_id}?profile_id={profile_id}")
+            assert delete_first.status_code == 200
+
+            final_overview = await client.get(f"/profile/overview?profile_id={profile_id}")
+            assert final_overview.status_code == 200
+            emptied = final_overview.json()
+            assert emptied["profile_mode"] == "auto"
+            assert emptied["documents_total"] == 0
+            assert emptied["work_experience"] == []
+            assert emptied["education"] == []
+            assert emptied["projects"] == []
+            assert emptied["source_documents"] == []
+
+    asyncio.run(scenario())
+
+
 def test_profile_selection_and_isolation_flow(tmp_path: Path) -> None:
     async def scenario() -> None:
         settings = Settings(
@@ -422,5 +675,90 @@ def test_profile_selection_and_isolation_flow(tmp_path: Path) -> None:
 
             delete_last_profile = await client.delete(f"/profiles/{primary_profile['id']}")
             assert delete_last_profile.status_code == 409
+
+    asyncio.run(scenario())
+
+
+def test_batch_upload_ingests_multiple_files(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        settings = Settings(
+            database_url=f"sqlite:///{tmp_path / 'batch.db'}",
+            uploads_dir=str(tmp_path / "uploads"),
+            enable_llm_extractor=False,
+            enable_embedding_retrieval=False,
+            enable_resume_ner=False,
+            enable_resume_gpt_formatter=False,
+        )
+        app = create_app(settings)
+        transport = httpx.ASGITransport(app=app)
+
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            profile = await register_and_create_profile(
+                client,
+                email="batch@example.com",
+                profile_name="Batch Profile",
+            )
+            profile_id = profile["id"]
+
+            response = await client.post(
+                "/documents/upload-batch",
+                data={"profile_id": profile_id, "parser_backend": "auto"},
+                files=[
+                    (
+                        "files",
+                        (
+                            "doc-ai.txt",
+                            """
+                            Divyesh Vishwakarma
+                            OCR Engineer
+                            divyesh@example.com
+
+                            SKILLS
+                            Python, OCR, Redis
+
+                            WORK EXPERIENCE
+                            OCR Engineer | Neuralit | 2023 - Present
+                            Built OCR workflows for document automation.
+                            """,
+                            "text/plain",
+                        ),
+                    ),
+                    (
+                        "files",
+                        (
+                            "platform.txt",
+                            """
+                            Divyesh Vishwakarma
+                            Backend Engineer
+
+                            SKILLS
+                            FastAPI, PostgreSQL, Docker
+
+                            PROJECTS
+                            Platform Toolkit
+                            Built Docker-based services with FastAPI and PostgreSQL.
+                            """,
+                            "text/plain",
+                        ),
+                    ),
+                ],
+            )
+            assert response.status_code == 200
+            payload = response.json()
+            assert payload["documents_created"] == 2
+            assert payload["failures"] == []
+            assert len(payload["uploads"]) == 2
+            assert payload["chunks_created"] >= 2
+            assert "skills" in payload["auto_profile_sections"]
+
+            documents = (await client.get(f"/documents?profile_id={profile_id}")).json()
+            assert len(documents) == 2
+
+            overview = (await client.get(f"/profile/overview?profile_id={profile_id}")).json()
+            skills = {skill.lower() for skill in overview["skills"]}
+            assert "ocr" in skills
+            assert "fastapi" in skills
+            assert "postgresql" in skills
+            assert overview["documents_total"] == 2
 
     asyncio.run(scenario())

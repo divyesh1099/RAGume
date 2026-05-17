@@ -65,6 +65,99 @@ CERTIFICATION_PATTERN = re.compile(
     r"\b(?:certification|certificate|certified|credential|license|licensed)\b",
     flags=re.IGNORECASE,
 )
+AI_PROFILE_SIGNALS = {
+    "llm",
+    "rag",
+    "ocr",
+    "nlp",
+    "layoutlmv3",
+    "langchain",
+    "llamaindex",
+    "langgraph",
+    "pytorch",
+    "tensorflow",
+    "document ai",
+    "genai",
+    "machine learning",
+    "mlflow",
+    "azure openai",
+}
+WEB_PROFILE_SIGNALS = {
+    "react",
+    "angular",
+    "asp.net",
+    "mvc",
+    "jquery",
+    "shopify",
+    "wix",
+    "css",
+    "html",
+    "typescript",
+    "javascript",
+    "django",
+    "flask",
+}
+MASTER_PROFILE_SIGNALS = {
+    "detailed",
+    "master",
+    "full experience",
+    "all projects",
+    "comprehensive",
+}
+DOCUMENT_ROLE_PRIORITY = {
+    "current_headline": {
+        "latest_ai_resume": 1.0,
+        "work_experience_resume": 0.86,
+        "asp_react_resume": 0.68,
+        "detailed_old_resume": 0.46,
+        "general_resume": 0.74,
+    },
+    "summary": {
+        "latest_ai_resume": 0.98,
+        "work_experience_resume": 0.82,
+        "asp_react_resume": 0.8,
+        "detailed_old_resume": 0.58,
+        "general_resume": 0.74,
+    },
+    "skills": {
+        "latest_ai_resume": 0.96,
+        "asp_react_resume": 0.9,
+        "work_experience_resume": 0.82,
+        "detailed_old_resume": 0.76,
+        "general_resume": 0.78,
+    },
+    "projects": {
+        "project_note": 1.0,
+        "detailed_old_resume": 0.96,
+        "latest_ai_resume": 0.82,
+        "asp_react_resume": 0.84,
+        "general_resume": 0.78,
+    },
+    "current_experience": {
+        "latest_ai_resume": 1.0,
+        "work_experience_resume": 0.95,
+        "general_resume": 0.78,
+        "detailed_old_resume": 0.6,
+        "asp_react_resume": 0.66,
+    },
+    "historical_experience": {
+        "detailed_old_resume": 0.96,
+        "work_experience_resume": 0.92,
+        "asp_react_resume": 0.84,
+        "latest_ai_resume": 0.78,
+        "general_resume": 0.8,
+    },
+    "education": {
+        "latest_ai_resume": 0.84,
+        "detailed_old_resume": 0.88,
+        "general_resume": 0.8,
+    },
+    "public_profile": {
+        "latest_ai_resume": 0.94,
+        "detailed_old_resume": 0.82,
+        "general_resume": 0.8,
+    },
+}
 
 
 def _default_identity() -> dict[str, Any]:
@@ -72,6 +165,8 @@ def _default_identity() -> dict[str, Any]:
         "full_name": None,
         "headline": None,
         "summary": None,
+        "current_position": None,
+        "target_headline": None,
         "location": None,
         "emails": [],
         "phones": [],
@@ -87,6 +182,10 @@ def _default_overview_data() -> dict[str, Any]:
         "work_experience": [],
         "projects": [],
         "certifications": [],
+        "profile_focus": None,
+        "profile_view": None,
+        "available_views": [],
+        "mode_summaries": {},
         "source_documents": [],
         "auto_updated_at": None,
     }
@@ -96,12 +195,141 @@ def _default_profile_container() -> dict[str, Any]:
     return {
         "auto": _default_overview_data(),
         "canonical": None,
+        "compiled_views": {},
         "manual": {},
     }
 
 
 def _clean_line(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip())
+
+
+def _focus_signal_counts(text: str) -> dict[str, int]:
+    lowered = text.lower()
+    return {
+        "ai_ml": sum(1 for signal in AI_PROFILE_SIGNALS if signal in lowered),
+        "web_dev": sum(1 for signal in WEB_PROFILE_SIGNALS if signal in lowered),
+        "master": sum(1 for signal in MASTER_PROFILE_SIGNALS if signal in lowered),
+    }
+
+
+def infer_profile_focus(insights: dict[str, Any], filename: str = "") -> str:
+    haystack = " ".join(
+        part
+        for part in (
+            filename,
+            insights.get("identity", {}).get("headline") or "",
+            insights.get("identity", {}).get("summary") or "",
+            " ".join(insights.get("skills", []) or []),
+            " ".join(
+                " ".join(
+                    filter(
+                        None,
+                        [
+                            item.get("title"),
+                            item.get("organization"),
+                            item.get("summary"),
+                            " ".join(item.get("technologies", []) or []),
+                        ],
+                    )
+                )
+                for item in insights.get("work_experience", []) or []
+            ),
+            " ".join(
+                " ".join(
+                    filter(
+                        None,
+                        [
+                            item.get("name"),
+                            item.get("summary"),
+                            " ".join(item.get("technologies", []) or []),
+                        ],
+                    )
+                )
+                for item in insights.get("projects", []) or []
+            ),
+        )
+        if part
+    )
+    counts = _focus_signal_counts(haystack)
+    filename_lower = filename.lower()
+    if counts["ai_ml"] >= max(3, counts["web_dev"] + 1):
+        return "ai_ml"
+    if counts["web_dev"] >= max(3, counts["ai_ml"] + 1):
+        return "web_dev"
+    if any(token in filename_lower for token in ("master", "detailed", "full")) or counts["master"] > 0:
+        return "master"
+    if counts["ai_ml"] or counts["web_dev"]:
+        return "ai_ml" if counts["ai_ml"] >= counts["web_dev"] else "web_dev"
+    return "master"
+
+
+def infer_document_role(insights: dict[str, Any], filename: str = "") -> str:
+    filename_lower = filename.lower()
+    focus = infer_profile_focus(insights, filename)
+    work_items = insights.get("work_experience", []) or []
+    project_items = insights.get("projects", []) or []
+    certification_items = insights.get("certifications", []) or []
+    identity = insights.get("identity", {}) or {}
+    summary_text = " ".join(
+        filter(
+            None,
+            [
+                identity.get("headline"),
+                identity.get("summary"),
+                " ".join(insights.get("skills", []) or []),
+            ],
+        )
+    ).lower()
+    current_roles = [
+        item
+        for item in work_items
+        if (item.get("end_date") and re.search(r"\b(?:present|current|now)\b", item.get("end_date"), flags=re.IGNORECASE))
+        or not item.get("end_date")
+    ]
+
+    if certification_items and not work_items and not project_items:
+        return "certificate"
+    if any(token in filename_lower for token in ("portfolio", "case-study", "case_study", "demo")) and project_items:
+        return "portfolio_note"
+    if any(token in filename_lower for token in ("project", "open-source", "opensource", "readme")) and project_items and not work_items:
+        return "project_note"
+    if any(token in filename_lower for token in ("work-experience", "experience", "career")) and work_items:
+        return "work_experience_resume"
+    if focus == "ai_ml" and (current_roles or any(token in summary_text for token in ("genai", "llm", "rag", "ocr", "document ai"))):
+        return "latest_ai_resume"
+    if focus == "web_dev" and any(token in summary_text for token in ("react", "angular", "asp.net", "mvc", "shopify", "wix", "jquery", "css")):
+        return "asp_react_resume"
+    if len(work_items) >= 3 or len(project_items) >= 4 or any(token in filename_lower for token in ("detailed", "master", "full")):
+        return "detailed_old_resume"
+    return "general_resume"
+
+
+def source_priority_for_role(field_bucket: str, document_role: str | None) -> float:
+    if not document_role:
+        return 0.72
+    return float(DOCUMENT_ROLE_PRIORITY.get(field_bucket, {}).get(document_role, DOCUMENT_ROLE_PRIORITY.get(field_bucket, {}).get("general_resume", 0.72)))
+
+
+def annotate_document_profile_metadata(document: Document, insights: dict[str, Any]) -> dict[str, Any]:
+    role = infer_document_role(insights, document.filename)
+    focus = infer_profile_focus(insights, document.filename)
+    quality = round(
+        min(
+            1.0,
+            0.55
+            + 0.15 * min(1.0, len(insights.get("work_experience", []) or []) / 3)
+            + 0.12 * min(1.0, len(insights.get("projects", []) or []) / 4)
+            + 0.10 * min(1.0, len(insights.get("skills", []) or []) / 12)
+            + (0.08 if insights.get("identity", {}).get("summary") else 0.0),
+        ),
+        4,
+    )
+    return {
+        "document_role": role,
+        "profile_focus": focus,
+        "source_quality": quality,
+    }
 
 
 def _split_contact_segments(line: str) -> list[str]:
@@ -214,6 +442,8 @@ def _normalize_identity(value: dict[str, Any] | None) -> dict[str, Any]:
     identity["full_name"] = _normalize_text_field(raw.get("full_name"))
     identity["headline"] = _normalize_text_field(raw.get("headline"))
     identity["summary"] = _normalize_text_field(raw.get("summary"))
+    identity["current_position"] = _normalize_text_field(raw.get("current_position"))
+    identity["target_headline"] = _normalize_text_field(raw.get("target_headline"))
     identity["location"] = _normalize_text_field(raw.get("location"))
     identity["emails"] = _unique_strings([str(item) for item in raw.get("emails", [])])
     identity["phones"] = _unique_strings([str(item) for item in raw.get("phones", [])])
@@ -225,6 +455,9 @@ def _normalize_source_document(item: dict[str, Any]) -> dict[str, Any]:
         "document_id": _normalize_text_field(item.get("document_id")) or "",
         "filename": _normalize_text_field(item.get("filename")) or "Unknown document",
         "created_at": _normalize_text_field(item.get("created_at")),
+        "document_role": _normalize_text_field(item.get("document_role")),
+        "profile_focus": _normalize_text_field(item.get("profile_focus")),
+        "source_quality": float(item.get("source_quality")) if item.get("source_quality") is not None else None,
         "signals": _unique_strings([str(signal) for signal in item.get("signals", [])]),
     }
 
@@ -249,6 +482,13 @@ def _normalize_item_list(items: list[dict[str, Any]], kind: str) -> list[dict[st
             "highlights": _unique_strings([str(value) for value in item.get("highlights", [])]),
             "links": _unique_strings([str(value) for value in item.get("links", [])]),
             "source_document_ids": _unique_strings([str(value) for value in item.get("source_document_ids", [])]),
+            "source_page": item.get("source_page"),
+            "visual_group_id": _normalize_text_field(item.get("visual_group_id")),
+            "title_block_id": _normalize_text_field(item.get("title_block_id")),
+            "org_block_id": _normalize_text_field(item.get("org_block_id")),
+            "date_block_id": _normalize_text_field(item.get("date_block_id")),
+            "bullet_block_ids": _unique_strings([str(value) for value in item.get("bullet_block_ids", [])]),
+            "link_types": _unique_strings([str(value) for value in item.get("link_types", [])]),
         }
 
         if kind == "education":
@@ -292,6 +532,14 @@ def _normalize_overview_data(value: dict[str, Any] | None) -> dict[str, Any]:
     data["work_experience"] = _normalize_item_list(list(raw.get("work_experience", [])), "work_experience")
     data["projects"] = _normalize_item_list(list(raw.get("projects", [])), "projects")
     data["certifications"] = _normalize_item_list(list(raw.get("certifications", [])), "certifications")
+    data["profile_focus"] = _normalize_text_field(raw.get("profile_focus"))
+    data["profile_view"] = _normalize_text_field(raw.get("profile_view"))
+    data["available_views"] = _unique_strings([str(item) for item in raw.get("available_views", [])])
+    data["mode_summaries"] = {
+        _normalize_text_field(key) or "default": _normalize_text_field(value) or ""
+        for key, value in dict(raw.get("mode_summaries") or {}).items()
+        if _normalize_text_field(value)
+    }
     data["public_profiles"] = _filter_public_profile_links(data["public_profiles"], data["projects"])
     data["source_documents"] = [
         normalized
@@ -308,6 +556,11 @@ def _normalize_profile_container(value: dict[str, Any] | None) -> dict[str, Any]
     container["auto"] = _normalize_overview_data(raw.get("auto"))
     canonical = raw.get("canonical")
     container["canonical"] = _normalize_overview_data(canonical) if isinstance(canonical, dict) else None
+    container["compiled_views"] = {
+        _normalize_text_field(key) or "default": _normalize_overview_data(view)
+        for key, view in dict(raw.get("compiled_views") or {}).items()
+        if isinstance(view, dict)
+    }
     manual = raw.get("manual") or {}
     normalized_manual: dict[str, Any] = {}
     if "identity" in manual:
@@ -336,10 +589,17 @@ def _overview_has_content(value: dict[str, Any] | None) -> bool:
     )
 
 
-def profile_overview_payload(profile: Profile, user: User | None = None, *, source: str = "effective") -> dict[str, Any]:
+def profile_overview_payload(
+    profile: Profile,
+    user: User | None = None,
+    *,
+    source: str = "effective",
+    view: str | None = None,
+) -> dict[str, Any]:
     container = _normalize_profile_container(profile.profile_data)
     auto = container["auto"]
     canonical = container.get("canonical")
+    compiled_views = dict(container.get("compiled_views") or {})
     manual = container["manual"]
 
     if source == "auto":
@@ -351,6 +611,10 @@ def profile_overview_payload(profile: Profile, user: User | None = None, *, sour
     else:
         base = canonical if _overview_has_content(canonical) else auto
         profile_mode = "canonical" if _overview_has_content(canonical) else "auto"
+
+    resolved_view = _normalize_text_field(view) or _normalize_text_field(base.get("profile_view")) or _normalize_text_field(base.get("profile_focus"))
+    if profile_mode == "canonical" and resolved_view and resolved_view in compiled_views:
+        base = compiled_views[resolved_view]
 
     identity = dict(base["identity"])
     if "identity" in manual:
@@ -368,6 +632,8 @@ def profile_overview_payload(profile: Profile, user: User | None = None, *, sour
         "profile_id": profile.id,
         "profile_name": profile.name,
         "profile_mode": profile_mode,
+        "profile_focus": base.get("profile_focus"),
+        "profile_view": resolved_view or base.get("profile_view") or base.get("profile_focus"),
         "identity": identity,
         "skills": skills,
         "public_profiles": public_profiles,
@@ -375,6 +641,8 @@ def profile_overview_payload(profile: Profile, user: User | None = None, *, sour
         "work_experience": list(base["work_experience"]),
         "projects": list(base["projects"]),
         "certifications": list(base["certifications"]),
+        "available_views": list(base.get("available_views") or compiled_views.keys()),
+        "mode_summaries": dict(base.get("mode_summaries") or {}),
         "source_documents": list(base["source_documents"]),
         "documents_total": len(base["source_documents"]),
         "auto_updated_at": base["auto_updated_at"],
@@ -911,6 +1179,14 @@ def _pick_identity_text(existing: str | None, candidate: str | None, *, field: s
     return candidate if score(candidate) > score(existing) else existing
 
 
+def _pick_scored_text(values: list[tuple[str, float]]) -> str | None:
+    cleaned = [(value, score) for value, score in values if _normalize_text_field(value)]
+    if not cleaned:
+        return None
+    cleaned.sort(key=lambda item: (item[1], len(_normalize_text_field(item[0]) or "")), reverse=True)
+    return _normalize_text_field(cleaned[0][0])
+
+
 def _merge_identity(target: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
     merged = _normalize_identity(target)
     normalized_source = _normalize_identity(source)
@@ -968,6 +1244,8 @@ def rebuild_profile_overview(session: Session, profile: Profile, settings: Setti
     collected_work: list[dict[str, Any]] = []
     collected_projects: list[dict[str, Any]] = []
     collected_certifications: list[dict[str, Any]] = []
+    focus_scores: dict[str, float] = defaultdict(float)
+    mode_summaries: dict[str, list[tuple[str, float]]] = defaultdict(list)
 
     merged_identity = _default_identity()
 
@@ -983,8 +1261,15 @@ def rebuild_profile_overview(session: Session, profile: Profile, settings: Setti
             parse_metadata["profile_parser_diagnostics"] = diagnostics
             document.parse_metadata = parse_metadata
         normalized = _normalize_overview_data(insights)
+        document_focus = _normalize_text_field(parse_metadata.get("profile_focus")) or infer_profile_focus(normalized, document.filename)
+        document_role = _normalize_text_field(parse_metadata.get("document_role")) or infer_document_role(normalized, document.filename)
+        source_quality = float(parse_metadata.get("source_quality") or annotate_document_profile_metadata(document, normalized)["source_quality"])
+        focus_scores[document_focus] += source_quality
 
         merged_identity = _merge_identity(merged_identity, normalized["identity"])
+        if normalized["identity"].get("summary"):
+            mode_summaries[document_focus].append((normalized["identity"]["summary"], source_quality))
+            mode_summaries["master"].append((normalized["identity"]["summary"], source_quality))
 
         auto["skills"] = _unique_strings([*auto["skills"], *normalized["skills"]])
         auto["public_profiles"] = _unique_links([*auto["public_profiles"], *normalized["public_profiles"]])
@@ -997,6 +1282,9 @@ def rebuild_profile_overview(session: Session, profile: Profile, settings: Setti
                 "document_id": document.id,
                 "filename": document.filename,
                 "created_at": document.created_at.isoformat() if document.created_at else None,
+                "document_role": document_role,
+                "profile_focus": document_focus,
+                "source_quality": source_quality,
                 "signals": [
                     key
                     for key in ("identity", "skills", "education", "work_experience", "projects", "certifications")
@@ -1014,6 +1302,14 @@ def rebuild_profile_overview(session: Session, profile: Profile, settings: Setti
     auto["work_experience"] = _merge_item_collection(collected_work, "work_experience")
     auto["projects"] = _merge_item_collection(collected_projects, "projects")
     auto["certifications"] = _merge_item_collection(collected_certifications, "certifications")
+    auto["profile_focus"] = max(focus_scores.items(), key=lambda item: item[1])[0] if focus_scores else None
+    auto["mode_summaries"] = {
+        mode: _pick_identity_text(None, _pick_scored_text(candidates), field="summary")
+        for mode, candidates in mode_summaries.items()
+        if _pick_scored_text(candidates)
+    }
+    if auto["profile_focus"] and auto["mode_summaries"].get(auto["profile_focus"]):
+        auto["identity"]["summary"] = auto["mode_summaries"][auto["profile_focus"]]
     auto["auto_updated_at"] = dt.datetime.now(dt.UTC).isoformat()
 
     container = _normalize_profile_container(profile.profile_data)

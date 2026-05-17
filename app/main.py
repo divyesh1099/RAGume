@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
@@ -20,6 +20,8 @@ from app.schemas import (
     ClaimExtractionResponse,
     ChunkSearchHit,
     DashboardSummary,
+    DocumentBatchFailureRead,
+    DocumentBatchIngestResponse,
     DocumentIngestResponse,
     DocumentReparseResponse,
     DocumentRead,
@@ -70,6 +72,7 @@ from app.services.parser_backends import (
     validate_resume_parser_choice,
 )
 from app.services.profile_memory import (
+    annotate_document_profile_metadata,
     extract_document_profile_insights,
     profile_overview_payload,
     rebuild_profile_overview,
@@ -81,6 +84,7 @@ from app.services.profile_studio import (
     build_structured_profile_review,
     clear_canonical_profile,
     document_structured_claims_need_sync,
+    rollback_profile_after_evidence_delete,
     resolve_structured_profile_claim,
     save_canonical_profile_from_structured_claims,
     serialize_structured_profile_claim,
@@ -292,6 +296,7 @@ def auto_process_document(
     parse_metadata["profile_parser_diagnostics"] = diagnostics
     parse_metadata["profile_parser_backend"] = diagnostics.get("parser_backend")
     parse_metadata["profile_parser_label"] = diagnostics.get("parser_backend_label")
+    parse_metadata.update(annotate_document_profile_metadata(document, insights))
     document.parse_metadata = parse_metadata
     session.flush()
     sync_document_structured_profile_claims(session, profile, document, settings=settings)
@@ -329,6 +334,31 @@ def auto_process_document(
     return len(claims), auto_sections, warnings
 
 
+def ingest_and_process_uploaded_document(
+    session: Session,
+    *,
+    upload_file: UploadFile,
+    profile: Profile,
+    settings: Settings,
+    parser_choice: str | None,
+) -> DocumentIngestResponse:
+    document, chunks_created = ingest_uploaded_document(session, upload_file, settings, profile)
+    auto_approved_claims, auto_profile_sections, warnings = auto_process_document(
+        session,
+        document=document,
+        profile=profile,
+        settings=settings,
+        parser_backend=parser_choice,
+    )
+    return DocumentIngestResponse(
+        document=document,
+        chunks_created=chunks_created,
+        auto_approved_claims=auto_approved_claims,
+        auto_profile_sections=auto_profile_sections,
+        warnings=warnings,
+    )
+
+
 def refresh_document_profile(
     session: Session,
     *,
@@ -350,6 +380,7 @@ def refresh_document_profile(
     parse_metadata["profile_parser_diagnostics"] = diagnostics
     parse_metadata["profile_parser_backend"] = diagnostics.get("parser_backend")
     parse_metadata["profile_parser_label"] = diagnostics.get("parser_backend_label")
+    parse_metadata.update(annotate_document_profile_metadata(document, insights))
     document.parse_metadata = parse_metadata
     session.flush()
     sync_document_structured_profile_claims(session, profile, document, settings=settings)
@@ -605,6 +636,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/profile/overview", response_model=ProfileOverviewRead)
     async def get_profile_overview(
         profile_id: str | None = None,
+        view: str | None = None,
         current_user: User = Depends(get_current_user),
         session: Session = Depends(get_session_async),
         app_settings: Settings = Depends(get_app_settings),
@@ -614,7 +646,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             rebuild_profile_overview(session, profile, app_settings)
             session.commit()
             session.refresh(profile)
-        return ProfileOverviewRead(**profile_overview_payload(profile, current_user))
+        return ProfileOverviewRead(**profile_overview_payload(profile, current_user, view=view))
 
     @app.patch("/profile/overview", response_model=ProfileOverviewRead)
     async def update_profile_overview(
@@ -646,6 +678,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/profile/studio/review", response_model=StructuredProfileReviewRead)
     async def get_profile_studio_review(
         profile_id: str | None = None,
+        view: str | None = None,
         current_user: User = Depends(get_current_user),
         session: Session = Depends(get_session_async),
         app_settings: Settings = Depends(get_app_settings),
@@ -673,7 +706,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 sync_document_structured_profile_claims(session, profile, document, settings=app_settings)
         session.commit()
         session.refresh(profile)
-        return StructuredProfileReviewRead(**build_structured_profile_review(session, profile, current_user, settings=app_settings))
+        payload = build_structured_profile_review(session, profile, current_user, view=view, settings=app_settings)
+        session.commit()
+        session.refresh(profile)
+        return StructuredProfileReviewRead(**payload)
 
     @app.patch("/profile/studio/claims/{claim_id}", response_model=StructuredProfileClaimRead)
     async def update_profile_studio_claim_route(
@@ -718,11 +754,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/profile/studio/save", response_model=ProfileOverviewRead)
     async def save_profile_studio_route(
         profile_id: str | None = None,
+        view: str | None = None,
         current_user: User = Depends(get_current_user),
         session: Session = Depends(get_session_async),
+        app_settings: Settings = Depends(get_app_settings),
     ) -> ProfileOverviewRead:
         profile = resolve_profile(session, current_user, profile_id)
-        overview = save_canonical_profile_from_structured_claims(session, profile, current_user)
+        overview = save_canonical_profile_from_structured_claims(session, profile, current_user, view=view, settings=app_settings)
         session.commit()
         session.refresh(profile)
         return ProfileOverviewRead(**overview)
@@ -730,6 +768,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.delete("/profile/studio/canonical", response_model=ProfileOverviewRead)
     async def clear_profile_studio_canonical_route(
         profile_id: str | None = None,
+        view: str | None = None,
         current_user: User = Depends(get_current_user),
         session: Session = Depends(get_session_async),
     ) -> ProfileOverviewRead:
@@ -737,7 +776,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         clear_canonical_profile(session, profile)
         session.commit()
         session.refresh(profile)
-        return ProfileOverviewRead(**profile_overview_payload(profile, current_user, source="auto"))
+        return ProfileOverviewRead(**profile_overview_payload(profile, current_user, source="auto", view=view))
 
     @app.post("/documents/upload", response_model=DocumentIngestResponse)
     async def upload_document(
@@ -753,19 +792,77 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             parser_choice = validate_resume_parser_choice(app_settings, parser_backend)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        document, chunks_created = ingest_uploaded_document(session, file, app_settings, profile)
-        auto_approved_claims, auto_profile_sections, warnings = auto_process_document(
+        return ingest_and_process_uploaded_document(
             session,
-            document=document,
+            upload_file=file,
             profile=profile,
             settings=app_settings,
-            parser_backend=parser_choice,
+            parser_choice=parser_choice,
         )
-        return DocumentIngestResponse(
-            document=document,
+
+    @app.post("/documents/upload-batch", response_model=DocumentBatchIngestResponse)
+    async def upload_documents_batch(
+        files: list[UploadFile] = File(...),
+        profile_id: str | None = Form(None),
+        parser_backend: str | None = Form(None),
+        current_user: User = Depends(get_current_user),
+        session: Session = Depends(get_session_async),
+        app_settings: Settings = Depends(get_app_settings),
+    ) -> DocumentBatchIngestResponse:
+        profile = resolve_profile(session, current_user, profile_id)
+        try:
+            parser_choice = validate_resume_parser_choice(app_settings, parser_backend)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        uploads: list[DocumentIngestResponse] = []
+        failures: list[DocumentBatchFailureRead] = []
+        auto_profile_sections: set[str] = set()
+        warnings: list[str] = []
+        chunks_created = 0
+        auto_approved_claims = 0
+
+        for upload_file in files:
+            try:
+                item = ingest_and_process_uploaded_document(
+                    session,
+                    upload_file=upload_file,
+                    profile=profile,
+                    settings=app_settings,
+                    parser_choice=parser_choice,
+                )
+            except HTTPException as exc:
+                session.rollback()
+                failures.append(
+                    DocumentBatchFailureRead(
+                        filename=upload_file.filename or "document",
+                        detail=str(exc.detail),
+                    )
+                )
+                continue
+            except Exception as exc:
+                session.rollback()
+                failures.append(
+                    DocumentBatchFailureRead(
+                        filename=upload_file.filename or "document",
+                        detail=f"{exc.__class__.__name__}: {exc}",
+                    )
+                )
+                continue
+
+            uploads.append(item)
+            chunks_created += item.chunks_created
+            auto_approved_claims += item.auto_approved_claims
+            auto_profile_sections.update(item.auto_profile_sections)
+            warnings.extend(item.warnings)
+
+        return DocumentBatchIngestResponse(
+            uploads=uploads,
+            failures=failures,
+            documents_created=len(uploads),
             chunks_created=chunks_created,
             auto_approved_claims=auto_approved_claims,
-            auto_profile_sections=auto_profile_sections,
+            auto_profile_sections=sorted(auto_profile_sections),
             warnings=warnings,
         )
 
@@ -842,8 +939,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         document = ensure_document_in_profile(session.get(Document, document_id), profile)
         filename = document.filename
         storage_path = delete_document_evidence(session, document)
+        rollback_profile_after_evidence_delete(session, profile, current_user, settings=app_settings)
         sync_profile_graph(session)
-        rebuild_profile_overview(session, profile, app_settings)
         session.commit()
         cleanup_document_storage(storage_path)
         return {"status": "deleted", "document_id": document_id, "filename": filename}

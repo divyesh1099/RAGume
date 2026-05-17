@@ -174,12 +174,40 @@ def _run_startup_migrations(engine) -> None:
                         "WHERE resolver_evidence IS NULL"
                     )
                 )
+            if "admission_status" not in structured_columns:
+                connection.execute(text("ALTER TABLE structured_profile_claims ADD COLUMN admission_status VARCHAR(24)"))
+                connection.execute(
+                    text(
+                        "UPDATE structured_profile_claims SET admission_status = CASE "
+                        "WHEN status IN ('accepted', 'edited') THEN 'admit' "
+                        "WHEN status IN ('rejected', 'duplicate') THEN 'reject_noise' "
+                        "ELSE 'needs_review' END "
+                        "WHERE admission_status IS NULL"
+                    )
+                )
+            if "admission_reason" not in structured_columns:
+                connection.execute(text("ALTER TABLE structured_profile_claims ADD COLUMN admission_reason VARCHAR(120)"))
+            if "admission_score" not in structured_columns:
+                connection.execute(text("ALTER TABLE structured_profile_claims ADD COLUMN admission_score FLOAT"))
+                connection.execute(
+                    text(
+                        "UPDATE structured_profile_claims SET admission_score = "
+                        "COALESCE(resolver_confidence, confidence, 0.0) "
+                        "WHERE admission_score IS NULL"
+                    )
+                )
             if "suggested_section" not in structured_columns:
                 connection.execute(text("ALTER TABLE structured_profile_claims ADD COLUMN suggested_section VARCHAR(50)"))
             connection.execute(
                 text(
                     "CREATE INDEX IF NOT EXISTS ix_structured_profile_claims_resolver_action "
                     "ON structured_profile_claims (resolver_action)"
+                )
+            )
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_structured_profile_claims_admission_status "
+                    "ON structured_profile_claims (admission_status)"
                 )
             )
 

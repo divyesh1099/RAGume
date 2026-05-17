@@ -68,6 +68,7 @@
 
         <nav class="studio-jump-nav" aria-label="Profile studio sections">
           <a class="studio-jump-link" href="#profile-studio-step-1">Step 1 Review</a>
+          <a class="studio-jump-link" href="#profile-studio-fusion">Fusion Review</a>
           <a class="studio-jump-link" href="#profile-studio-step-2">Step 2 Memory</a>
           <a class="studio-jump-link" href="#profile-studio-diagnostics">Diagnostics</a>
         </nav>
@@ -99,6 +100,10 @@
                 <h2>Canonical profile memory</h2>
               </div>
               <div class="inline-row wrap">
+                <label class="field-label-inline" for="profile-view-select">View</label>
+                <select id="profile-view-select" class="compact-select">
+                  <option value="">Loading views...</option>
+                </select>
                 <a class="studio-jump-link" href="#profile-studio-step-1">Back to Step 1</a>
               </div>
             </div>
@@ -150,6 +155,46 @@
           </article>
         </section>
 
+        <section class="surface" id="profile-studio-fusion">
+          <div class="surface-header">
+            <div>
+              <span class="eyebrow">Fusion Review</span>
+              <h2>How evidence was merged</h2>
+            </div>
+            <div class="inline-row wrap">
+              <a class="studio-jump-link" href="#profile-studio-step-1">Back to Step 1</a>
+              <a class="studio-jump-link" href="#profile-studio-step-2">Jump to Step 2</a>
+            </div>
+          </div>
+          <p class="subtle" id="profile-fusion-meta">Critical conflicts, optional cleanup, and ignored duplicates will appear here.</p>
+          <div class="fusion-grid">
+            <article class="detail-card fusion-panel">
+              <div class="detail-card-title">Merged Automatically</div>
+              <div class="stack-list compact-stack" id="profile-fusion-merged">
+                <div class="empty-state">Automatic merges will appear after review data loads.</div>
+              </div>
+            </article>
+            <article class="detail-card fusion-panel">
+              <div class="detail-card-title">Blocking Issues</div>
+              <div class="stack-list compact-stack" id="profile-fusion-critical">
+                <div class="empty-state">Trust-breaking conflicts will appear here.</div>
+              </div>
+            </article>
+            <article class="detail-card fusion-panel">
+              <div class="detail-card-title">Needs Your Choice</div>
+              <div class="stack-list compact-stack" id="profile-fusion-optional">
+                <div class="empty-state">Optional cleanup items will appear here.</div>
+              </div>
+            </article>
+            <article class="detail-card fusion-panel">
+              <div class="detail-card-title">System Cleanup</div>
+              <div class="stack-list compact-stack" id="profile-fusion-ignored">
+                <div class="empty-state">Duplicates and noisy fragments will appear here.</div>
+              </div>
+            </article>
+          </div>
+        </section>
+
         <section class="surface" id="profile-studio-diagnostics">
           <div class="surface-header">
             <div>
@@ -168,6 +213,12 @@
               <div class="detail-card-title">Source parser snapshots</div>
               <div class="stack-list compact-stack" id="profile-diagnostics-sources">
                 <div class="empty-state">Parser diagnostics will appear after documents are processed.</div>
+              </div>
+            </article>
+            <article class="detail-card diagnostics-span-full">
+              <div class="detail-card-title">Assembled evidence frames</div>
+              <div class="stack-list compact-stack" id="profile-diagnostics-records">
+                <div class="empty-state">Experience, project, education, and summary frames will appear after review data loads.</div>
               </div>
             </article>
           </div>

@@ -4,6 +4,7 @@ const state = {
   user: null,
   profiles: [],
   selectedProfileId: window.localStorage.getItem("resume_workspace_profile_id") || null,
+  profileView: window.localStorage.getItem("resume_workspace_profile_view") || null,
   parserBackends: [],
   selectedParserBackend: window.localStorage.getItem("resume_workspace_parser_backend") || null,
   parserComparisons: {},
@@ -12,6 +13,7 @@ const state = {
   profileOverview: null,
   profileStudioReview: null,
   profileStudioPreview: null,
+  profileFusion: null,
   profileStudioBucket: "review",
   profileStudioSectionByBucket: {},
   documents: [],
@@ -153,8 +155,15 @@ const elements = {
   saveCanonicalButton: document.querySelector("#save-canonical-button"),
   resetCanonicalButton: document.querySelector("#reset-canonical-button"),
   profileMemoryMode: document.querySelector("#profile-memory-mode"),
+  profileFusionMeta: document.querySelector("#profile-fusion-meta"),
+  profileFusionMerged: document.querySelector("#profile-fusion-merged"),
+  profileFusionCritical: document.querySelector("#profile-fusion-critical"),
+  profileFusionOptional: document.querySelector("#profile-fusion-optional"),
+  profileFusionIgnored: document.querySelector("#profile-fusion-ignored"),
+  profileViewSelect: document.querySelector("#profile-view-select"),
   profileDiagnosticsSummary: document.querySelector("#profile-diagnostics-summary"),
   profileDiagnosticsSources: document.querySelector("#profile-diagnostics-sources"),
+  profileDiagnosticsRecords: document.querySelector("#profile-diagnostics-records"),
 
   wikiArticleCount: document.querySelector("#wiki-article-count"),
   wikiSearchInput: document.querySelector("#wiki-search-input"),
@@ -258,7 +267,8 @@ function formatDate(value) {
 }
 
 function confidencePercent(value) {
-  return Math.round((value || 0) * 100);
+  const numeric = Number.isFinite(Number(value)) ? Number(value) : 0;
+  return Math.round(Math.max(0, Math.min(numeric, 1)) * 100);
 }
 
 function tokenize(text) {
@@ -277,6 +287,20 @@ function formatSectionLabel(value) {
   return String(value || "")
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatFusionGroupLabel(value) {
+  const mapping = {
+    identity: "Personal",
+    public_profile: "Link",
+    skill: "Skill",
+    work_experience: "Experience",
+    education: "Education",
+    project: "Project",
+    certification: "Certification",
+    ignored_public_profile: "Ignored Link",
+  };
+  return mapping[value] || formatSectionLabel(value);
 }
 
 function currentProfile() {
@@ -305,6 +329,15 @@ function rememberSelectedParserBackend(backendId) {
   window.localStorage.removeItem("resume_workspace_parser_backend");
 }
 
+function rememberSelectedProfileView(view) {
+  state.profileView = view || null;
+  if (state.profileView) {
+    window.localStorage.setItem("resume_workspace_profile_view", state.profileView);
+    return;
+  }
+  window.localStorage.removeItem("resume_workspace_profile_view");
+}
+
 function parserBackendMeta(backendId) {
   if (backendId === AUTO_PARSER_BACKEND.id) {
     return AUTO_PARSER_BACKEND;
@@ -331,8 +364,30 @@ function ensureSelectedParserBackend() {
   return nextBackend;
 }
 
+function selectedUploadFiles() {
+  return Array.from(elements.fileInput?.files || []);
+}
+
 function selectedUploadFile() {
-  return elements.fileInput?.files?.[0] || null;
+  return selectedUploadFiles()[0] || null;
+}
+
+function selectedUploadLabel(files = selectedUploadFiles()) {
+  if (!files.length) {
+    return "Nothing selected yet.";
+  }
+  if (files.length === 1) {
+    return `${files[0].name} is ready to upload.`;
+  }
+  const visibleNames = files.slice(0, 3).map((file) => file.name).join(", ");
+  const remainder = files.length > 3 ? `, +${files.length - 3} more` : "";
+  return `${files.length} files ready: ${visibleNames}${remainder}.`;
+}
+
+function refreshSelectedUploadLabel(files = selectedUploadFiles()) {
+  if (elements.selectedFileLabel) {
+    elements.selectedFileLabel.textContent = selectedUploadLabel(files);
+  }
 }
 
 function parserTargetLooksLikePdfOrImage({ filename = "", mimeType = "", parserName = "" } = {}) {
@@ -999,18 +1054,20 @@ function renderSelectedDocumentSummary() {
 }
 
 function renderProfileOverviewSnapshot() {
-  const overview = page === "profile" && state.profileStudioPreview
+  const overview = page === "profile" && state.profileOverview?.profile_mode !== "canonical" && state.profileStudioPreview
     ? state.profileStudioPreview
     : state.profileOverview;
   if (!overview) {
     return;
   }
   if (elements.profileMemoryMode) {
+    const focusLabel = overview.profile_focus ? ` Focus: ${formatSectionLabel(overview.profile_focus)}.` : "";
+    const viewLabel = overview.profile_view ? ` View: ${formatSectionLabel(overview.profile_view)}.` : "";
     elements.profileMemoryMode.textContent = overview.profile_mode === "canonical"
-      ? "This is the saved canonical profile memory that future job outputs should use."
+      ? `This is the saved canonical profile memory that future job outputs should use.${focusLabel}${viewLabel}`
       : overview.profile_mode === "review"
-        ? "This is the live review preview. Accept, reject, or edit items on the left, then save when it looks right."
-        : "This is the latest extracted profile preview. Save the reviewed sections to lock in a canonical profile.";
+        ? `This is the live review preview. Accept, reject, or edit items on the left, then save when it looks right.${focusLabel}${viewLabel}`
+        : `This is the latest extracted profile preview. Save the reviewed sections to lock in a canonical profile.${focusLabel}${viewLabel}`;
   }
 
   const identity = overview.identity || {};
@@ -1018,6 +1075,8 @@ function renderProfileOverviewSnapshot() {
     elements.profileIdentityCard.innerHTML = `
       <div class="profile-block-title">${escapeHtml(identity.full_name || "No name detected yet")}</div>
       <div class="profile-block-subtitle">${escapeHtml(identity.headline || "Upload stronger profile evidence to capture a headline.")}</div>
+      ${identity.current_position ? `<div class="profile-line subtle">Current position: ${escapeHtml(identity.current_position)}</div>` : ""}
+      ${identity.target_headline ? `<div class="profile-line subtle">Target headline: ${escapeHtml(identity.target_headline)}</div>` : ""}
       <p class="subtle">${escapeHtml(identity.summary || "A short summary will appear here after the app finds one in your uploaded evidence.")}</p>
     `;
   }
@@ -1104,6 +1163,94 @@ function renderProfileOverviewSnapshot() {
           .join("")
       : '<div class="empty-state">Evidence sources will appear here after upload.</div>';
   }
+}
+
+function availableProfileViews() {
+  const values = unique([
+    ...(state.profileOverview?.available_views || []),
+    ...(state.profileStudioPreview?.available_views || []),
+    ...(state.profileStudioReview?.canonical_profile?.available_views || []),
+  ].filter(Boolean));
+  return values.length ? values : ["master", "ai_ml", "web_dev", "full_stack", "ats_short"];
+}
+
+function renderProfileViewControl() {
+  if (!elements.profileViewSelect) {
+    return;
+  }
+  const views = availableProfileViews();
+  const fallback = state.profileOverview?.profile_view || state.profileStudioPreview?.profile_view || state.profileOverview?.profile_focus || "master";
+  const selected = views.includes(state.profileView) ? state.profileView : fallback;
+  if (!state.profileView && selected) {
+    rememberSelectedProfileView(selected);
+  }
+  elements.profileViewSelect.innerHTML = views
+    .map((view) => `<option value="${escapeHtml(view)}" ${selected === view ? "selected" : ""}>${escapeHtml(formatSectionLabel(view))}</option>`)
+    .join("");
+}
+
+function fusionGroupMarkup(group, anomalyLookup = new Map()) {
+  const metadata = group.group_metadata || {};
+  const anomaly = anomalyLookup.get(group.id);
+  const candidateValues = metadata.candidate_values || [];
+  const ignoredValues = metadata.ignored_values || [];
+  const reasons = metadata.reasons || [];
+  const groupLabel = formatFusionGroupLabel(group.group_type);
+  return `
+    <article class="fusion-entry">
+      <div class="meta-row">
+        <strong>${escapeHtml(groupLabel)}</strong>
+        <span class="chip ${structuredClaimResolverClass(group.merge_action)}">${escapeHtml(String(group.merge_action || "merged").replaceAll("_", " ").toUpperCase())}</span>
+        <span class="meta-text">${confidencePercent(group.confidence)}%</span>
+      </div>
+      <div class="fusion-entry-value">${escapeHtml(group.canonical_value || "No canonical value selected")}</div>
+      <div class="detail-line">${escapeHtml(String(metadata.source_count || group.claim_ids?.length || 0))} sources${metadata.document_count ? ` · ${escapeHtml(String(metadata.document_count))} documents` : ""}</div>
+      ${anomaly ? `<div class="detail-line warning-line">${escapeHtml(anomaly.message)}</div>` : ""}
+      ${candidateValues.length ? `
+        <div class="tag-row">
+          ${candidateValues.slice(0, 4).map((item) => `<span class="tag">${escapeHtml(item.value || item.normalized || "")}</span>`).join("")}
+        </div>
+      ` : ""}
+      ${ignoredValues.length ? `<div class="detail-line">Ignored: ${escapeHtml(ignoredValues.slice(0, 4).join(", "))}</div>` : ""}
+      ${reasons.length ? `<div class="detail-line">${escapeHtml(reasons.join(" · "))}</div>` : ""}
+    </article>
+  `;
+}
+
+function renderProfileFusion() {
+  if (!elements.profileFusionMerged || !elements.profileFusionCritical || !elements.profileFusionOptional || !elements.profileFusionIgnored) {
+    return;
+  }
+  const fusion = state.profileFusion;
+  if (!fusion) {
+    if (elements.profileFusionMeta) {
+      elements.profileFusionMeta.textContent = "Critical conflicts, optional cleanup, and ignored duplicates will appear here.";
+    }
+    elements.profileFusionMerged.innerHTML = '<div class="empty-state">Automatic merges will appear after review data loads.</div>';
+    elements.profileFusionCritical.innerHTML = '<div class="empty-state">Trust-breaking conflicts will appear here.</div>';
+    elements.profileFusionOptional.innerHTML = '<div class="empty-state">Optional cleanup items will appear here.</div>';
+    elements.profileFusionIgnored.innerHTML = '<div class="empty-state">Duplicates and noisy fragments will appear here.</div>';
+    return;
+  }
+
+  const anomalyLookup = new Map((fusion.anomalies || []).filter((item) => item.claim_group_id).map((item) => [item.claim_group_id, item]));
+  if (elements.profileFusionMeta) {
+    const summary = fusion.summary || {};
+    elements.profileFusionMeta.textContent = `${summary.critical_review_total || 0} critical fixes before the profile is trustworthy · ${summary.optional_review_total || 0} optional cleanup items · ${summary.ignored_total || 0} ignored safely`;
+  }
+
+  elements.profileFusionMerged.innerHTML = (fusion.merged_groups || []).length
+    ? fusion.merged_groups.map((group) => fusionGroupMarkup(group, anomalyLookup)).join("")
+    : '<div class="empty-state">No automatic merges yet.</div>';
+  elements.profileFusionCritical.innerHTML = (fusion.critical_review_groups || []).length
+    ? fusion.critical_review_groups.map((group) => fusionGroupMarkup(group, anomalyLookup)).join("")
+    : '<div class="empty-state">No critical conflicts right now.</div>';
+  elements.profileFusionOptional.innerHTML = (fusion.optional_review_groups || []).length
+    ? fusion.optional_review_groups.map((group) => fusionGroupMarkup(group, anomalyLookup)).join("")
+    : '<div class="empty-state">No optional cleanup items right now.</div>';
+  elements.profileFusionIgnored.innerHTML = (fusion.ignored_groups || []).length
+    ? fusion.ignored_groups.map((group) => fusionGroupMarkup(group, anomalyLookup)).join("")
+    : '<div class="empty-state">No duplicates or noisy fragments ignored yet.</div>';
 }
 
 function renderDocuments() {
@@ -1682,13 +1829,13 @@ function structuredClaimStatusClass(status) {
 
 function structuredClaimResolverClass(action) {
   const normalized = String(action || "").toLowerCase();
-  if (normalized === "auto_correct" || normalized === "accepted_suggestion") {
+  if (normalized === "auto_correct" || normalized === "accepted_suggestion" || normalized === "admit") {
     return "success";
   }
-  if (normalized === "needs_review") {
+  if (normalized === "needs_review" || normalized === "reject_noise") {
     return "danger";
   }
-  if (normalized === "suggest" || normalized === "manual" || normalized === "duplicate") {
+  if (normalized === "suggest" || normalized === "manual" || normalized === "duplicate" || normalized === "quarantine") {
     return "warning";
   }
   return "";
@@ -1872,8 +2019,18 @@ function profileStudioBucketChoices() {
 function profileStudioBucketForClaim(claim) {
   const status = String(claim.status || "").toLowerCase();
   const action = String(claim.resolver_action || "keep").toLowerCase();
+  const admission = String(claim.admission_status || "").toLowerCase();
+  if (admission === "reject_noise" || admission === "quarantine") {
+    return "rejected";
+  }
   if (status === "rejected" || status === "duplicate" || action === "duplicate") {
     return "rejected";
+  }
+  if (admission === "needs_review") {
+    return "review";
+  }
+  if (admission === "admit") {
+    return "ready";
   }
   if (status === "accepted" || status === "edited") {
     return "ready";
@@ -1948,8 +2105,10 @@ function structuredClaimCardMarkup(claim) {
       <div class="meta-row">
         <span class="chip ${structuredClaimStatusClass(claim.status)}">${escapeHtml(claim.status.replaceAll("_", " ").toUpperCase())}</span>
         <span class="chip ${structuredClaimResolverClass(claim.resolver_action)}">${escapeHtml(String(claim.resolver_action || "keep").replaceAll("_", " ").toUpperCase())}</span>
+        <span class="chip ${structuredClaimResolverClass(claim.admission_status)}">${escapeHtml(String(claim.admission_status || "needs_review").replaceAll("_", " ").toUpperCase())}</span>
         <span class="meta-text">${confidencePercent(claim.confidence)}% parser</span>
         <span class="meta-text">${confidencePercent(claim.resolver_confidence || 0)}% resolver</span>
+        <span class="meta-text">${confidencePercent(claim.admission_score || 0)}% admission</span>
         <span class="meta-text">${escapeHtml(claim.document_filename || "Source document")}</span>
       </div>
       <div class="studio-claim-preview">${escapeHtml(correctedPreview)}</div>
@@ -1961,6 +2120,7 @@ function structuredClaimCardMarkup(claim) {
         </div>
       ` : ""}
       ${claim.suggested_section && claim.suggested_section !== claim.section ? `<p class="subtle studio-claim-note">Suggested move: ${escapeHtml(sectionLabel)}</p>` : ""}
+      ${claim.admission_reason ? `<p class="subtle studio-claim-note">Admission: ${escapeHtml(String(claim.admission_reason).replaceAll("_", " "))}</p>` : ""}
       ${claim.source_text ? `<p class="subtle">${escapeHtml(claim.source_text)}</p>` : ""}
       ${(claim.resolver_evidence || []).length ? `
         <div class="meta-row studio-claim-evidence">
@@ -2013,9 +2173,10 @@ function renderProfileStudioReview() {
   const reviewCount = buckets.find((bucket) => bucket.value === "review")?.total || 0;
   const readyCount = buckets.find((bucket) => bucket.value === "ready")?.total || 0;
   const rejectedCount = buckets.find((bucket) => bucket.value === "rejected")?.total || 0;
+  const fusionSummary = review.fusion?.summary || {};
 
   if (elements.profileReviewMeta) {
-    elements.profileReviewMeta.textContent = `${review.claims_total} extracted items · ${reviewCount} to review now · ${readyCount} ready or accepted · ${rejectedCount} rejected or ignored`;
+    elements.profileReviewMeta.textContent = `${review.claims_total} extracted items · ${fusionSummary.critical_review_total || 0} critical review items · ${fusionSummary.optional_review_total || reviewCount} optional cleanup items · ${readyCount} ready or accepted · ${rejectedCount} rejected or ignored`;
   }
 
   if (!buckets.some((bucket) => bucket.total > 0)) {
@@ -2103,13 +2264,14 @@ function renderProfileStudioReview() {
 }
 
 function renderProfileStudioDiagnostics() {
-  if (!elements.profileDiagnosticsSummary || !elements.profileDiagnosticsSources) {
+  if (!elements.profileDiagnosticsSummary || !elements.profileDiagnosticsSources || !elements.profileDiagnosticsRecords) {
     return;
   }
   const diagnostics = state.profileStudioReview?.diagnostics;
   if (!diagnostics) {
     elements.profileDiagnosticsSummary.innerHTML = '<div class="empty-state">Correction diagnostics will appear after review data loads.</div>';
     elements.profileDiagnosticsSources.innerHTML = '<div class="empty-state">Parser diagnostics will appear after documents are processed.</div>';
+    elements.profileDiagnosticsRecords.innerHTML = '<div class="empty-state">Experience, project, education, and summary frames will appear after review data loads.</div>';
     return;
   }
 
@@ -2156,6 +2318,7 @@ function renderProfileStudioDiagnostics() {
             ${source.embedding_status ? `<span class="chip">${escapeHtml(source.embedding_status)}</span>` : ""}
           </div>
           <div class="detail-line">${escapeHtml(source.parser_backend || "parser")} · ${escapeHtml(source.extraction_mode || "mode")} · score ${escapeHtml(String(source.validation_score ?? "--"))}</div>
+          <div class="detail-line">${escapeHtml(source.document_role || "general_resume")} · ${escapeHtml(source.profile_focus || "master")} · quality ${escapeHtml(String(source.source_quality ?? "--"))}</div>
           <div class="detail-line">${escapeHtml(String(source.page_count || 0))} pages · ${escapeHtml(String(source.block_count || 0))} blocks · ${escapeHtml(String(source.warning_count || 0))} warnings</div>
           <div class="tag-row">
             ${Object.entries(source.section_counts || {}).length
@@ -2165,6 +2328,69 @@ function renderProfileStudioDiagnostics() {
         </article>
       `).join("")
     : '<div class="empty-state">Parser diagnostics will appear after documents are processed.</div>';
+
+  const recordFrames = diagnostics.record_frames || [];
+  elements.profileDiagnosticsRecords.innerHTML = recordFrames.length
+    ? recordFrames.map((documentFrames) => {
+      const sections = [
+        ["experience_frames", "Experience Frames"],
+        ["project_frames", "Project Frames"],
+        ["education_frames", "Education Frames"],
+        ["summary_frames", "Summary Frames"],
+        ["leadership_frames", "Leadership Frames"],
+        ["freelance_frames", "Freelance Frames"],
+      ];
+      const sectionMarkup = sections
+        .map(([key, label]) => {
+          const frames = documentFrames[key] || [];
+          if (!frames.length) {
+            return "";
+          }
+          return `
+            <div class="frame-group">
+              <div class="detail-line frame-group-title">${escapeHtml(label)} · ${escapeHtml(String(frames.length))}</div>
+              <div class="stack-list compact-stack">
+                ${frames.map((frame) => {
+                  const headline = frame.organization
+                    ? `${frame.organization}${frame.title ? ` · ${frame.title}` : ""}`
+                    : (frame.name || frame.text || frame.degree || "Frame");
+                  const details = [
+                    frame.start_date || frame.end_date ? `Dates: ${[frame.start_date, frame.end_date].filter(Boolean).join(" - ")}` : "",
+                    frame.location ? `Location: ${frame.location}` : "",
+                    frame.summary ? `Summary: ${frame.summary}` : "",
+                    frame.text ? `Text: ${frame.text}` : "",
+                    frame.degree || frame.institution ? `Education: ${[frame.degree, frame.institution].filter(Boolean).join(" · ")}` : "",
+                    Array.isArray(frame.highlights) && frame.highlights.length ? `Bullets: ${frame.highlights.length}` : "",
+                    Array.isArray(frame.technologies) && frame.technologies.length ? `Tech: ${frame.technologies.slice(0, 6).join(", ")}` : "",
+                    Array.isArray(frame.source_block_ids) && frame.source_block_ids.length ? `Blocks: ${frame.source_block_ids.slice(0, 4).join(", ")}` : "",
+                  ].filter(Boolean);
+                  return `
+                    <article class="detail-card frame-record">
+                      <div class="meta-row">
+                        <strong>${escapeHtml(headline)}</strong>
+                        <span class="chip">${confidencePercent(frame.confidence || 0)}%</span>
+                      </div>
+                      ${details.map((detail) => `<div class="detail-line">${escapeHtml(detail)}</div>`).join("")}
+                    </article>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+          `;
+        })
+        .filter(Boolean)
+        .join("");
+
+      return `
+        <article class="detail-card">
+          <div class="meta-row">
+            <strong>${escapeHtml(documentFrames.filename || "Document")}</strong>
+          </div>
+          ${sectionMarkup || '<div class="empty-state">No assembled frames were generated for this document.</div>'}
+        </article>
+      `;
+    }).join("")
+    : '<div class="empty-state">Experience, project, education, and summary frames will appear after review data loads.</div>';
 }
 
 function renderProfileEditor() {
@@ -2459,9 +2685,10 @@ async function acceptAllProfileStudioClaims() {
 async function saveCanonicalProfile() {
   try {
     setLoading(elements.saveCanonicalButton, true, "Saving...");
-    state.profileOverview = await apiFetch(withProfileQuery("/profile/studio/save"), { method: "POST" });
+    state.profileOverview = await apiFetch(withProfileQuery("/profile/studio/save", { view: state.profileView }), { method: "POST" });
     renderCurrentProfileMeta();
     renderProfileOverviewSnapshot();
+    renderProfileViewControl();
     await Promise.all([loadProfileStudioReview(), loadSummary()]);
     showToast("Saved canonical profile memory.");
   } catch (error) {
@@ -2479,9 +2706,10 @@ async function resetCanonicalProfile() {
 
   try {
     setLoading(elements.resetCanonicalButton, true, "Resetting...");
-    state.profileOverview = await apiFetch(withProfileQuery("/profile/studio/canonical"), { method: "DELETE" });
+    state.profileOverview = await apiFetch(withProfileQuery("/profile/studio/canonical", { view: state.profileView }), { method: "DELETE" });
     renderCurrentProfileMeta();
     renderProfileOverviewSnapshot();
+    renderProfileViewControl();
     await Promise.all([loadProfileStudioReview(), loadSummary()]);
     showToast("Returned to the extracted profile preview.");
   } catch (error) {
@@ -2492,9 +2720,10 @@ async function resetCanonicalProfile() {
 }
 
 async function loadProfileOverview() {
-  state.profileOverview = await apiFetch(withProfileQuery("/profile/overview"));
+  state.profileOverview = await apiFetch(withProfileQuery("/profile/overview", { view: state.profileView }));
   renderCurrentProfileMeta();
   renderProfileOverviewSnapshot();
+  renderProfileViewControl();
   renderProfileEditor();
 }
 
@@ -2502,11 +2731,14 @@ async function loadProfileStudioReview() {
   if (!elements.profileReviewSections) {
     return;
   }
-  state.profileStudioReview = await apiFetch(withProfileQuery("/profile/studio/review"));
+  state.profileStudioReview = await apiFetch(withProfileQuery("/profile/studio/review", { view: state.profileView }));
   state.profileStudioPreview = state.profileStudioReview.review_preview_profile || null;
+  state.profileFusion = state.profileStudioReview.fusion || null;
   renderProfileStudioReview();
+  renderProfileFusion();
   renderProfileStudioDiagnostics();
   renderProfileOverviewSnapshot();
+  renderProfileViewControl();
 }
 
 async function loadAuthSession() {
@@ -2756,10 +2988,10 @@ async function deleteManagedProfile() {
 
 async function uploadEvidence(event) {
   event.preventDefault();
-  const file = elements.fileInput?.files?.[0];
+  const files = selectedUploadFiles();
   const profile = currentProfile();
-  if (!file) {
-    showToast("Pick a file before uploading.", "error");
+  if (!files.length) {
+    showToast("Pick at least one file before uploading.", "error");
     return;
   }
   if (!profile) {
@@ -2769,33 +3001,59 @@ async function uploadEvidence(event) {
   }
 
   const formData = new FormData();
-  formData.append("file", file);
+  for (const file of files) {
+    formData.append("files", file);
+  }
   formData.append("profile_id", profile.id);
   formData.append("parser_backend", ensureSelectedParserBackend());
 
   try {
-    setLoading(elements.uploadButton, true, "Uploading...");
-    const response = await apiFetch("/documents/upload", {
+    setLoading(elements.uploadButton, true, files.length > 1 ? "Uploading files..." : "Uploading...");
+    const response = await apiFetch("/documents/upload-batch", {
       method: "POST",
       body: formData,
     });
-    delete state.parserComparisons[response.document.id];
-    state.selectedDocumentId = response.document.id;
+    const uploads = Array.isArray(response.uploads) ? response.uploads : [];
+    const failures = Array.isArray(response.failures) ? response.failures : [];
+    for (const item of uploads) {
+      if (item?.document?.id) {
+        delete state.parserComparisons[item.document.id];
+      }
+    }
+    if (uploads.length) {
+      state.selectedDocumentId = uploads[uploads.length - 1].document.id;
+    }
     if (elements.fileInput) {
       elements.fileInput.value = "";
     }
-    if (elements.selectedFileLabel) {
-      elements.selectedFileLabel.textContent = "Nothing selected yet.";
-    }
+    refreshSelectedUploadLabel([]);
     await refreshEvidencePage();
     if (elements.uploadStatus) {
       const detected = response.auto_profile_sections?.length
         ? `Updated ${response.auto_profile_sections.map(formatSectionLabel).join(", ")}.`
-        : "Upload completed, but only light profile signals were found.";
-      elements.uploadStatus.textContent = `${detected} The current profile was refreshed automatically.`;
+        : uploads.length
+          ? "Upload completed, but only light profile signals were found."
+          : "No files were ingested.";
+      const failureText = failures.length
+        ? ` ${failures.length} file${failures.length === 1 ? "" : "s"} could not be processed.`
+        : "";
+      elements.uploadStatus.textContent = `${detected}${failureText} The current profile was refreshed automatically.`;
     }
     const warningCopy = response.warnings?.length ? ` ${response.warnings.join(" ")}` : "";
-    showToast(`Uploaded ${response.document.filename}. The profile was updated automatically.${warningCopy}`);
+    if (!uploads.length && failures.length) {
+      showToast(`None of the selected files could be uploaded. ${failures[0].filename}: ${failures[0].detail}`, "error");
+      return;
+    }
+    const uploadedCount = uploads.length;
+    const successCopy = uploadedCount === 1
+      ? `Uploaded ${uploads[0].document.filename}.`
+      : `Uploaded ${uploadedCount} files.`;
+    if (failures.length) {
+      const firstFailure = failures[0];
+      showToast(`${successCopy} ${failures.length} failed, starting with ${firstFailure.filename}: ${firstFailure.detail}.${warningCopy}`, "error");
+    } else {
+      showToast(`${successCopy} The profile was updated automatically.${warningCopy}`);
+    }
   } catch (error) {
     showToast(error.message, "error");
   } finally {
@@ -3061,10 +3319,7 @@ function bindEvidencePage() {
 
   if (elements.fileInput) {
     elements.fileInput.addEventListener("change", () => {
-      const file = elements.fileInput.files?.[0];
-      if (elements.selectedFileLabel) {
-        elements.selectedFileLabel.textContent = file ? `${file.name} is ready to upload.` : "Nothing selected yet.";
-      }
+      refreshSelectedUploadLabel();
       renderParserBackendControls();
       renderSummary();
     });
@@ -3086,9 +3341,7 @@ function bindEvidencePage() {
       const files = event.dataTransfer?.files;
       if (files?.length && elements.fileInput) {
         elements.fileInput.files = files;
-        if (elements.selectedFileLabel) {
-          elements.selectedFileLabel.textContent = `${files[0].name} is ready to upload.`;
-        }
+        refreshSelectedUploadLabel(Array.from(files));
         renderParserBackendControls();
         renderSummary();
       }
@@ -3134,6 +3387,10 @@ function bindProfilePage() {
   elements.acceptAllReviewButton?.addEventListener("click", acceptAllProfileStudioClaims);
   elements.saveCanonicalButton?.addEventListener("click", saveCanonicalProfile);
   elements.resetCanonicalButton?.addEventListener("click", resetCanonicalProfile);
+  elements.profileViewSelect?.addEventListener("change", async () => {
+    rememberSelectedProfileView(elements.profileViewSelect.value);
+    await Promise.all([loadProfileStudioReview(), loadProfileOverview()]);
+  });
 }
 
 function bindAuthPages() {
