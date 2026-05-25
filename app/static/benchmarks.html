@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RAGume · Benchmarks</title>
+    <meta name="description" content="Run benchmark evaluations against a gold resume dataset and inspect field-level extraction quality.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body data-page="benchmarks">
+    <div class="app-frame">
+      <header class="topbar">
+        <a class="brand" href="/">
+          <span class="brand-mark">RG</span>
+          <span class="brand-copy">
+            <strong>RAGume</strong>
+            <span>Profile Studio</span>
+          </span>
+        </a>
+        <nav class="topnav">
+          <a class="topnav-link" href="/">Evidence</a>
+          <a class="topnav-link" href="/profile">Profile Studio</a>
+          <a class="topnav-link" href="/job">Job Description</a>
+          <a class="topnav-link" href="/wiki">Wiki</a>
+          <a class="topnav-link is-active" href="/benchmarks">Benchmarks</a>
+        </nav>
+        <div class="topbar-actions">
+          <button class="secondary-button" type="button" id="switch-profile-button">Switch Profile</button>
+          <span class="identity-pill" id="auth-user-pill">Account</span>
+          <button class="secondary-button" type="button" id="logout-button">Sign Out</button>
+        </div>
+      </header>
+
+      <main class="page-stack">
+        <section class="hero-panel">
+          <span class="eyebrow">Parser benchmark</span>
+          <h1>Measure extraction quality across many resumes.</h1>
+          <p>Run the current parser stack against a gold dataset, inspect field-level scores, and spot the resumes that still break the pipeline before they reach real users.</p>
+          <div class="hero-meta">
+            <div>
+              <strong id="current-profile-name">Loading benchmark dataset</strong>
+              <span id="current-profile-meta">Checking gold annotations and parser availability.</span>
+            </div>
+            <span class="subtle" id="engine-summary">Preparing benchmark runner.</span>
+          </div>
+        </section>
+
+        <section class="stats-row">
+          <article class="metric-card">
+            <span>Dataset cases</span>
+            <strong id="benchmark-metric-cases">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Categories</span>
+            <strong id="benchmark-metric-categories">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Last run</span>
+            <strong id="benchmark-metric-last-run">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Overall score</span>
+            <strong id="benchmark-metric-score">--</strong>
+          </article>
+        </section>
+
+        <section class="split-grid benchmark-top-grid">
+          <article class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">Runner</span>
+                <h2>Run benchmark</h2>
+              </div>
+            </div>
+            <div class="form-stack">
+              <div class="two-col-grid">
+                <div>
+                  <label class="field-label" for="benchmark-backend-select">Parser backend</label>
+                  <select id="benchmark-backend-select">
+                    <option value="auto">Auto (Recommended)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label" for="benchmark-category-select">Category</label>
+                  <select id="benchmark-category-select">
+                    <option value="">All categories</option>
+                  </select>
+                </div>
+              </div>
+              <div class="two-col-grid">
+                <div>
+                  <label class="field-label" for="benchmark-limit-input">Limit</label>
+                  <input id="benchmark-limit-input" type="number" min="1" step="1" placeholder="12">
+                </div>
+                <label class="benchmark-toggle">
+                  <input id="benchmark-remote-toggle" type="checkbox">
+                  <span>
+                    <strong>Allow remote models</strong>
+                    <small>Off by default to keep benchmark runs deterministic and API-safe.</small>
+                  </span>
+                </label>
+              </div>
+              <button class="primary-button" type="button" id="benchmark-run-button">Run benchmark</button>
+            </div>
+            <p class="subtle" id="benchmark-run-status">The benchmark runner will compare extracted output against the gold template at the configured dataset path.</p>
+          </article>
+
+          <article class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">Dataset</span>
+                <h2>Coverage snapshot</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="benchmark-dataset-summary">
+              <div class="empty-state">Dataset coverage details will appear here.</div>
+            </div>
+            <div class="tag-row" id="benchmark-field-coverage">
+              <span class="empty-inline">Coverage tags will appear here.</span>
+            </div>
+          </article>
+        </section>
+
+        <section class="surface">
+          <div class="surface-header">
+            <div>
+              <span class="eyebrow">Latest report</span>
+              <h2>Aggregate metrics</h2>
+            </div>
+          </div>
+          <div class="benchmark-summary-grid" id="benchmark-summary-grid">
+            <div class="empty-state">Run the benchmark to see aggregate metrics.</div>
+          </div>
+          <div class="benchmark-field-grid" id="benchmark-field-metrics">
+            <div class="empty-state">Field-level benchmark metrics will appear here after a run.</div>
+          </div>
+        </section>
+
+        <section class="surface">
+          <div class="surface-header">
+            <div>
+              <span class="eyebrow">Per resume</span>
+              <h2>Case results</h2>
+            </div>
+          </div>
+          <div class="stack-list" id="benchmark-case-results">
+            <div class="empty-state">Per-resume benchmark results will appear here after a run.</div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast-region" id="toast-region" aria-live="polite"></div>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

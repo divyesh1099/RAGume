@@ -1,0 +1,3326 @@
+{
+  "generated_at": "2026-05-17T19:37:27.760227+00:00",
+  "dataset_dir": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0",
+  "parser_backend": "auto",
+  "allow_remote_models": false,
+  "limit": 12,
+  "categories": [],
+  "resume_ids": [],
+  "total_cases": 12,
+  "processed_cases": 12,
+  "success_cases": 12,
+  "failed_cases": 0,
+  "overall_score": 0.2418114979252244,
+  "duration_seconds": 27.952,
+  "saved_report_path": "data/benchmark-reports/benchmark-20260517T193727Z-auto.json",
+  "field_metrics": [
+    {
+      "field": "name",
+      "label": "Name",
+      "scored_cases": 8,
+      "skipped_cases": 4,
+      "average_score": 0.5087967658327699,
+      "match_cases": 1,
+      "close_cases": 0,
+      "miss_cases": 7
+    },
+    {
+      "field": "email",
+      "label": "Email",
+      "scored_cases": 0,
+      "skipped_cases": 12,
+      "average_score": null,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 0
+    },
+    {
+      "field": "phone",
+      "label": "Phone",
+      "scored_cases": 0,
+      "skipped_cases": 12,
+      "average_score": null,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 0
+    },
+    {
+      "field": "location",
+      "label": "Location",
+      "scored_cases": 4,
+      "skipped_cases": 8,
+      "average_score": 0.0,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 4
+    },
+    {
+      "field": "summary",
+      "label": "Summary",
+      "scored_cases": 0,
+      "skipped_cases": 12,
+      "average_score": null,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 0
+    },
+    {
+      "field": "links",
+      "label": "Links",
+      "scored_cases": 0,
+      "skipped_cases": 12,
+      "average_score": null,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 0
+    },
+    {
+      "field": "skills",
+      "label": "Skills",
+      "scored_cases": 9,
+      "skipped_cases": 3,
+      "average_score": 0.18330211845209016,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 9
+    },
+    {
+      "field": "experience",
+      "label": "Experience",
+      "scored_cases": 12,
+      "skipped_cases": 0,
+      "average_score": 0.1339358053309989,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 12
+    },
+    {
+      "field": "education",
+      "label": "Education",
+      "scored_cases": 11,
+      "skipped_cases": 1,
+      "average_score": 0.47724878275936805,
+      "match_cases": 0,
+      "close_cases": 1,
+      "miss_cases": 10
+    },
+    {
+      "field": "projects",
+      "label": "Projects",
+      "scored_cases": 0,
+      "skipped_cases": 12,
+      "average_score": null,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 0
+    },
+    {
+      "field": "certifications",
+      "label": "Certifications",
+      "scored_cases": 0,
+      "skipped_cases": 12,
+      "average_score": null,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 0
+    },
+    {
+      "field": "achievements",
+      "label": "Achievements",
+      "scored_cases": 0,
+      "skipped_cases": 12,
+      "average_score": null,
+      "match_cases": 0,
+      "close_cases": 0,
+      "miss_cases": 0
+    }
+  ],
+  "cases": [
+    {
+      "resume_id": "11174187",
+      "category": "ADVOCATE",
+      "filename": "ADVOCATE__11174187.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ADVOCATE__11174187.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.0,
+      "gold_fields_available": 3,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Work Experience is missing or weak.",
+        "Education is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.65,
+        "validation_status": "needs_review",
+        "validation_score": 17,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 2,
+        "block_count": 10
+      },
+      "extracted_snapshot": {
+        "full_name": "RN",
+        "headline": "RN / ASST. HEAD NURSE PRACTICE LEADER",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 15,
+        "experience_count": 0,
+        "education_count": 0,
+        "project_count": 0,
+        "top_skills": [
+          "care planning",
+          "Case Management",
+          "Home Health",
+          "Hospice",
+          "Infection control",
+          "injections",
+          "Nurse Manager",
+          "Oncology",
+          "scheduling",
+          "staff"
+        ],
+        "top_experience": [],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "RN"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 1,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Nurse"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 15,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "care planning",
+            "Case Management",
+            "Home Health",
+            "Hospice",
+            "Infection control",
+            "injections",
+            "Nurse Manager",
+            "Oncology"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 3,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 3,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "ResCare \u00b7 2 years",
+            "Best Home Health \u00b7 monthly",
+            "Maxim Home Health \u00b7 the day"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 1,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Diploma Illinois Masonic School of Nursing"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "16332348",
+      "category": "ADVOCATE",
+      "filename": "ADVOCATE__16332348.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ADVOCATE__16332348.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.0,
+      "gold_fields_available": 2,
+      "warnings": [
+        "Full Name is missing or weak.",
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Education is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.83,
+        "validation_status": "needs_review",
+        "validation_score": 17,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 3,
+        "block_count": 36
+      },
+      "extracted_snapshot": {
+        "full_name": null,
+        "headline": null,
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 14,
+        "experience_count": 2,
+        "education_count": 0,
+        "project_count": 0,
+        "top_skills": [
+          "filing",
+          "Clerk",
+          "Heavy Machinery",
+          "Multi-line",
+          "Multi-line Phone",
+          "Multi-line Phone System",
+          "Phone System",
+          "Operations, Training",
+          "Clients",
+          "Cases"
+        ],
+        "top_experience": [
+          "Victim Advocate \u00b7 Company \u00b7 2014 - Current",
+          "Support Analyst \u00b7 Com pany Nam e \u00b7 2015 - Current"
+        ],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "Highly motivating, detail-oriented, and adaptable social services professional skilled in intakes and assessm ents, crisis m anagem ent and comprehensive case management. Possessing a strong background in the crim inal justice field, excellent organizational and analytical skills, extensive experience m anaging heavy case loads, working closely with social services and crim inal justice agencies and program management.Well-rounded professional experienced in applying principles of psychology to personnel handling, adm inistration, m anagem ent and marketing problem s. Extensive knowledge of hum an and industry behavior and perform ance, m ental processes and assessm ent m ethods.Energetic [Job Title] successful in program developm ent, im plem entation and m anagem ent, as well as com m unity outreach for m ission-oriented organizations. Highlights Problem solving expertise Time management"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 1,
+          "extracted_count": 14,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 14,
+          "gold_preview": [
+            "Excel"
+          ],
+          "extracted_preview": [
+            "filing",
+            "Clerk",
+            "Heavy Machinery",
+            "Multi-line",
+            "Multi-line Phone",
+            "Multi-line Phone System",
+            "Phone System",
+            "Operations, Training"
+          ],
+          "notes": []
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 3,
+          "extracted_count": 2,
+          "matched_count": 0,
+          "missing_count": 3,
+          "unexpected_count": 2,
+          "gold_preview": [
+            "Microsoft Excel \u00b7 quarterly",
+            "Customer Service Handled \u00b7 daily",
+            "Current Company Name City \u00b7 daily"
+          ],
+          "extracted_preview": [
+            "Victim Advocate \u00b7 Company \u00b7 2014 - Current",
+            "Support Analyst \u00b7 Com pany Nam e \u00b7 2015 - Current"
+          ],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "24588864",
+      "category": "ADVOCATE",
+      "filename": "ADVOCATE__24588864.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ADVOCATE__24588864.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.03676470588235294,
+      "gold_fields_available": 3,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Work Experience is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.65,
+        "validation_status": "needs_review",
+        "validation_score": 33,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 4,
+        "block_count": 38
+      },
+      "extracted_snapshot": {
+        "full_name": "VETERAN ADVO",
+        "headline": "VETERAN ADVOCATE INTERN",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 108,
+        "experience_count": 0,
+        "education_count": 3,
+        "project_count": 0,
+        "top_skills": [
+          "Conflict resolution skills",
+          "Superior Organizational Skills",
+          "Exceptional interpersonal skills",
+          "Ability to work effectively with a team",
+          "Excellent Custom er Service Skills",
+          "Effective Problem Solving Skills",
+          "Excellent Critical Thinking Skills",
+          "Detail Oriented",
+          "ability to m aintain confidentiality",
+          "Experienced interviewer and trainer"
+        ],
+        "top_experience": [],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "miss",
+          "score": 0.3529411764705882,
+          "gold_count": 1,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Windows Live"
+          ],
+          "extracted_preview": [
+            "VETERAN ADVO"
+          ],
+          "notes": []
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 108,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "Conflict resolution skills",
+            "Superior Organizational Skills",
+            "Exceptional interpersonal skills",
+            "Ability to work effectively with a team",
+            "Excellent Custom er Service Skills",
+            "Effective Problem Solving Skills",
+            "Excellent Critical Thinking Skills",
+            "Detail Oriented"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 3,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 3,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Time \u00b7 30 day",
+            "Microsoft Office \u00b7 monthly",
+            "Microsoft Word \u00b7 monthly"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 1,
+          "extracted_count": 3,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 3,
+          "gold_preview": [
+            "Rehabilitation Care Technician"
+          ],
+          "extracted_preview": [
+            "Master of Science \u00b7 Master of Science : Hum an Resource Managem ent Hum an Resource Generalist , 2019",
+            "Bachelor of Arts \u00b7 Strayer University - City , State \u00b7 Sociology ,",
+            "Augusta State University - City , State"
+          ],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "38291889",
+      "category": "ADVOCATE",
+      "filename": "ADVOCATE__38291889.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ADVOCATE__38291889.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.11948717948717949,
+      "gold_fields_available": 5,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Work Experience is missing or weak.",
+        "Education is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.73,
+        "validation_status": "needs_review",
+        "validation_score": 17,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 2,
+        "block_count": 7
+      },
+      "extracted_snapshot": {
+        "full_name": "VO",
+        "headline": "PATIENT ADVOCATE",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 36,
+        "experience_count": 0,
+        "education_count": 0,
+        "project_count": 0,
+        "top_skills": [
+          "acquisitions",
+          "agency",
+          "Billing",
+          "Billings",
+          "clerical",
+          "Coach",
+          "coaching",
+          "clients",
+          "em ail",
+          "Senior Managem ent"
+        ],
+        "top_experience": [],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "miss",
+          "score": 0.5,
+          "gold_count": 1,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Eric Stoddard Diverse"
+          ],
+          "extracted_preview": [
+            "VO"
+          ],
+          "notes": []
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 1,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Unitted States Bachelor of Science : Management - Human Resource Management"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "Seeking an opportunity in an Managem ent/HR Departm ent\u00c2 where m y professional\u00c2 experience and education will allow m e to m ake an i m m edi ate contri buti on, as an i ntegral part of a progressi ve organi zati on. Education and Training HealthCare Administration- Hum an Resources , 2017 Herzing University- Online \u00ef\u00bc City , State , Unitted States Bachelor of Science : Managem ent - Hum an Resource Managem ent , 2009 Kaplan University \u00ef\u00bc City , State , United States"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "miss",
+          "score": 0.3230769230769231,
+          "gold_count": 3,
+          "extracted_count": 36,
+          "matched_count": 3,
+          "missing_count": 0,
+          "unexpected_count": 33,
+          "gold_preview": [
+            "Excel",
+            "Word",
+            "Windows"
+          ],
+          "extracted_preview": [
+            "acquisitions",
+            "agency",
+            "Billing",
+            "Billings",
+            "clerical",
+            "Coach",
+            "coaching",
+            "clients"
+          ],
+          "notes": []
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 3,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 3,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Current Company Name \u00b7 May 2017",
+            "State \u00b7 daily",
+            "IRIS \u00b7 March 2015"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 1,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Bachelor \u00b7 HealthCare Administration-"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "84512719",
+      "category": "AGRICULTURE",
+      "filename": "AGRICULTURE__84512719.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/AGRICULTURE__84512719.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.18849206349206346,
+      "gold_fields_available": 3,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Projects is missing or weak.",
+        "No explicit skills section was detected, so skills were inferred from the document text.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.6883,
+        "validation_status": "needs_review",
+        "validation_score": 50,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 1,
+        "block_count": 14
+      },
+      "extracted_snapshot": {
+        "full_name": "E-COMMERCE SUPERVISOR",
+        "headline": null,
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 1,
+        "experience_count": 1,
+        "education_count": 3,
+        "project_count": 0,
+        "top_skills": [
+          "work"
+        ],
+        "top_experience": [
+          "Agriculture Worker \u00b7 2015 - Current"
+        ],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "E-COMMERCE SUPERVISOR"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "I am seeking a challenging position in m anagem ent, where I can apply m y experience to a com pany's objective and profits. I have a discipline approach to the task at hand and the ability to anticipate potential obstacles, which is contributed to a strong record of excellence for getting the job done safely. I am an optim istic & quick learner, I am safety conscious and have excellent organizational and m ultitasking aptitude. I currently plan and lead individuals in order to com plete daily tasks in a tim ely and safe m anner. Highlights Qualified to operate and train individuals on various equipm ent. Proficient in Microsoft Office Proficient in Exeter WMS"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 2,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 2,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Excel",
+            "Word"
+          ],
+          "extracted_preview": [
+            "work"
+          ],
+          "notes": []
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 3,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 3,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "02/2015 \u00b7 daily",
+            "the Safety Committee Co-Owner \u00b7 03/2003",
+            "02/2015 Continuously"
+          ],
+          "extracted_preview": [
+            "Agriculture Worker \u00b7 2015 - Current"
+          ],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.625,
+          "gold_count": 1,
+          "extracted_count": 3,
+          "matched_count": 1,
+          "missing_count": 0,
+          "unexpected_count": 2,
+          "gold_preview": [
+            "Electrical/Electronics Engineering Technology"
+          ],
+          "extracted_preview": [
+            "Electrical/Electronics Engineering Technology, AAS Presently attending Owens Com m unity College - City , State GPA: 3.93 \u00b7 Electrical",
+            "2010 Owens Community College - Toledo OH -Photovoltaic Certification",
+            "Graduate : 1998 Riverdale High School"
+          ],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "23636277",
+      "category": "ACCOUNTANT",
+      "filename": "ACCOUNTANT__23636277.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ACCOUNTANT__23636277.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.2420254813637166,
+      "gold_fields_available": 4,
+      "warnings": [
+        "Full Name is missing or weak.",
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.78,
+        "validation_status": "needs_review",
+        "validation_score": 33,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 2,
+        "block_count": 12
+      },
+      "extracted_snapshot": {
+        "full_name": null,
+        "headline": "ACCOUNTANT",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 88,
+        "experience_count": 1,
+        "education_count": 3,
+        "project_count": 0,
+        "top_skills": [
+          "Accounting",
+          "accounts payable",
+          "Accounts Receivable",
+          "acquisitions",
+          "Adobe",
+          "approach",
+          "Auditing",
+          "Trial Balance",
+          "balance",
+          "Balance Sheet"
+        ],
+        "top_experience": [
+          "Financial Analyst \u00b7 2014 - Current"
+        ],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 1,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Adobe Reader"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "To achieve a job as an Accountant that utilizes m y accounting, com m unication, analytical & leadership skills. Highlights MS Office (Excel, Word, PowerPoint), SAP R/3, Adobe Reader, QuickBooks, Lacerte, Prosystem s & Tax base Accounts Payable Processes & Management"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "miss",
+          "score": 0.23555555555555557,
+          "gold_count": 2,
+          "extracted_count": 88,
+          "matched_count": 2,
+          "missing_count": 0,
+          "unexpected_count": 86,
+          "gold_preview": [
+            "Excel",
+            "Word"
+          ],
+          "extracted_preview": [
+            "Accounting",
+            "accounts payable",
+            "Accounts Receivable",
+            "acquisitions",
+            "Adobe",
+            "approach",
+            "Auditing",
+            "Trial Balance"
+          ],
+          "notes": []
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 3,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 3,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Current Accountant Company Name \u00b7 2013",
+            "Individuals & Corporate \u00b7 2016",
+            "Lacerte \u00b7 1099"
+          ],
+          "extracted_preview": [
+            "Financial Analyst \u00b7 2014 - Current"
+          ],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.6182432432432432,
+          "gold_count": 1,
+          "extracted_count": 3,
+          "matched_count": 1,
+          "missing_count": 0,
+          "unexpected_count": 2,
+          "gold_preview": [
+            "MA CPA Candidate University of Mumbai"
+          ],
+          "extracted_preview": [
+            "LLB \u00b7 Pursuing Certified Public Accountant (CPA), Boston, MA CPA Candidate University of Mum bai \u00ef\u00bc State , India \u00b7 Law",
+            "Company Secretary Jun'07-Dec'10 Courses: Company Law, Economic laws, Tax Laws, Cost & Management Accounting, Information Technology & Systems Audit, Corporate Restructuring, Valuation, Drafting, Financial, Treasury & Forex Managem ent, Labor law, Secretarial Audit, Due Diligence. Institute of Com pany Secretaries of India (ICSI) \u00ef\u00bc State , India",
+            "Bachelors \u00b7 Bachelors : Commerce University of Mum bai \u00ef\u00bc State , India Com m erce \u00b7 Commerce"
+          ],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "15906625",
+      "category": "ACCOUNTANT",
+      "filename": "ACCOUNTANT__15906625.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ACCOUNTANT__15906625.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.2844444444444444,
+      "gold_fields_available": 5,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Work Experience is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.65,
+        "validation_status": "needs_review",
+        "validation_score": 33,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 2,
+        "block_count": 27
+      },
+      "extracted_snapshot": {
+        "full_name": "Professional Sum m",
+        "headline": "Professional Sum m ary",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 62,
+        "experience_count": 0,
+        "education_count": 2,
+        "project_count": 0,
+        "top_skills": [
+          "Financial statem ents",
+          "Flexible team player",
+          "Work History",
+          "Accountant Aug 2013 - Current",
+          "Company Name City",
+          "State",
+          "Prepare",
+          "Record Journal Entries",
+          "& Reconcile Asset accounts",
+          "including surplus"
+        ],
+        "top_experience": [],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "miss",
+          "score": 0.41666666666666663,
+          "gold_count": 1,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Accountant Aug"
+          ],
+          "extracted_preview": [
+            "Professional Sum m"
+          ],
+          "notes": []
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 1,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "the City of Alexandria"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "miss",
+          "score": 0.25,
+          "gold_count": 2,
+          "extracted_count": 62,
+          "matched_count": 2,
+          "missing_count": 0,
+          "unexpected_count": 60,
+          "gold_preview": [
+            "Excel",
+            "Word"
+          ],
+          "extracted_preview": [
+            "Financial statem ents",
+            "Flexible team player",
+            "Work History",
+            "Accountant Aug 2013 - Current",
+            "Company Name City",
+            "State",
+            "Prepare",
+            "Record Journal Entries"
+          ],
+          "notes": []
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 3,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 3,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Financial Statements \u00b7 1099s",
+            "Manage \u00b7 month-end",
+            "Prepare \u00b7 quarterly"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "close",
+          "score": 0.75,
+          "gold_count": 1,
+          "extracted_count": 2,
+          "matched_count": 1,
+          "missing_count": 0,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Bachelor \u00b7 Northwestern State University of Louisiana City"
+          ],
+          "extracted_preview": [
+            "Bachelor \u00b7 Bachelor : Accounting 2002 \u00b7 Accounting",
+            "Northwestern State University of Louisiana City , State"
+          ],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "12065211",
+      "category": "ACCOUNTANT",
+      "filename": "ACCOUNTANT__12065211.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ACCOUNTANT__12065211.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.2972673690308099,
+      "gold_fields_available": 5,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Work Experience is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "certificate",
+        "profile_focus": "master",
+        "source_quality": 0.65,
+        "validation_status": "needs_review",
+        "validation_score": 33,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 2,
+        "block_count": 16
+      },
+      "extracted_snapshot": {
+        "full_name": "SENIOR ACCOUNTANT",
+        "headline": "Professional Sum m ary",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 60,
+        "experience_count": 0,
+        "education_count": 2,
+        "project_count": 0,
+        "top_skills": [
+          "Aderant",
+          "CMS",
+          "Excel",
+          "QuickBooks Pro",
+          "SQL",
+          "Access\u00c2",
+          "Peachtree",
+          "Hyperion",
+          "Financial reporting",
+          "US GAAP principles"
+        ],
+        "top_experience": [],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "miss",
+          "score": 0.7407407407407408,
+          "gold_count": 1,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Accountant Mar 2006"
+          ],
+          "extracted_preview": [
+            "SENIOR ACCOUNTANT"
+          ],
+          "notes": []
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 1,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "US"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "miss",
+          "score": 0.2516129032258065,
+          "gold_count": 2,
+          "extracted_count": 60,
+          "matched_count": 2,
+          "missing_count": 0,
+          "unexpected_count": 58,
+          "gold_preview": [
+            "SQL",
+            "Excel"
+          ],
+          "extracted_preview": [
+            "Aderant",
+            "CMS",
+            "Excel",
+            "QuickBooks Pro",
+            "SQL",
+            "Access\u00c2",
+            "Peachtree",
+            "Hyperion"
+          ],
+          "notes": []
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 3,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 3,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Deloitte \u00b7 annual",
+            "Aderant/CMS \u00b7 annual",
+            "State \u00b7 monthly"
+          ],
+          "extracted_preview": [],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.7136363636363636,
+          "gold_count": 1,
+          "extracted_count": 2,
+          "matched_count": 1,
+          "missing_count": 0,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Bachelor \u00b7 Bachelor of Business Administration : Accounting"
+          ],
+          "extracted_preview": [
+            "Bachelor of Business Adm inist \u00b7 Bachelor of Business Adm inistration : Accounting August 2002 \u00b7 Accounting",
+            "TEMPLE UNIVERSITY City , State \u00b7 Accounting"
+          ],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 3,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "Certified",
+            "Additional Inform ation",
+            "Activities: Vice President, APS (Accounting Professional Society) at Tem ple University, 2001 - 2002 \u00b7 AP"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "30813919",
+      "category": "ACCOUNTANT",
+      "filename": "ACCOUNTANT__30813919.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ACCOUNTANT__30813919.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.31556979033631327,
+      "gold_fields_available": 3,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.7,
+        "validation_status": "needs_review",
+        "validation_score": 50,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 4,
+        "block_count": 58
+      },
+      "extracted_snapshot": {
+        "full_name": "Professional Accountant",
+        "headline": "Vast experience in preparing tax returns.",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 41,
+        "experience_count": 1,
+        "education_count": 3,
+        "project_count": 0,
+        "top_skills": [
+          "Management expert",
+          "General and tax accounting",
+          "Expert in taxation",
+          "Advised taxpayers on tax issues",
+          "Company Name \u00ef\u00bc City",
+          "State",
+          "Tax Officer Feb 1997 to Apr 1999",
+          "Senior Tax Clerk Dec 1991 to Jan 1997",
+          "Maintained taxpayer files",
+          "Issued tax clearance certificates"
+        ],
+        "top_experience": [
+          "Commissioner of Taxes \u00b7 Jun 2013 - Nov 2013"
+        ],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "miss",
+          "score": 0.6896551724137931,
+          "gold_count": 1,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Accountant Jun 2013"
+          ],
+          "extracted_preview": [
+            "Professional Accountant"
+          ],
+          "notes": []
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 41,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "Management expert",
+            "General and tax accounting",
+            "Expert in taxation",
+            "Advised taxpayers on tax issues",
+            "Company Name \u00ef\u00bc City",
+            "State",
+            "Tax Officer Feb 1997 to Apr 1999",
+            "Senior Tax Clerk Dec 1991 to Jan 1997"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 3,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 3,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Taxes Apr 2011 \u00b7 monthly",
+            "the Large Taxpayer Unit \u00b7 2012",
+            "Company Name \u00ef\u00bc\u200b City \u00b7 annual"
+          ],
+          "extracted_preview": [
+            "Commissioner of Taxes \u00b7 Jun 2013 - Nov 2013"
+          ],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.6157407407407407,
+          "gold_count": 1,
+          "extracted_count": 3,
+          "matched_count": 1,
+          "missing_count": 0,
+          "unexpected_count": 2,
+          "gold_preview": [
+            "Certificate , Management 2009"
+          ],
+          "extracted_preview": [
+            "Managem \u00b7 Certificate , Managem ent 2009 HMRC Staff College \u00ef\u00bc City , State , United Kingdom",
+            "Certificate , Managem ent 2007 Managem ent Institute for National Developm ent (MIND) \u00ef\u00bc City , Jam aica",
+            "Certificate , Taxation \u00b7 Certificate , Taxation 2004 HMRC Staff College \u00ef\u00bc City , State , United Kingdom"
+          ],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "69360287",
+      "category": "AGRICULTURE",
+      "filename": "AGRICULTURE__69360287.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/AGRICULTURE__69360287.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.3520325689695149,
+      "gold_fields_available": 4,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Projects is missing or weak.",
+        "No explicit skills section was detected, so skills were inferred from the document text.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "detailed_old_resume",
+        "profile_focus": "ai_ml",
+        "source_quality": 0.7167,
+        "validation_status": "needs_review",
+        "validation_score": 50,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 2,
+        "block_count": 17
+      },
+      "extracted_snapshot": {
+        "full_name": "Notary Public",
+        "headline": "Accomplishments",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 2,
+        "experience_count": 3,
+        "education_count": 3,
+        "project_count": 0,
+        "top_skills": [
+          "Lotus Notes",
+          "Citrix"
+        ],
+        "top_experience": [
+          "Customer Service Specialist III \u00b7 Mar 2016 - Aug 2016",
+          "Deputy City Clerk \u00b7 Company Name \u00b7 Sep 2015 - Feb 2016",
+          "Information Technical Assistant \u00b7 Sep 2007 - Jul 2010"
+        ],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "miss",
+          "score": 0.3703703703703704,
+          "gold_count": 1,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 1,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Suites, Outlook"
+          ],
+          "extracted_preview": [
+            "Notary Public"
+          ],
+          "notes": []
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "miss",
+          "score": 0.0,
+          "gold_count": 2,
+          "extracted_count": 2,
+          "matched_count": 0,
+          "missing_count": 2,
+          "unexpected_count": 2,
+          "gold_preview": [
+            "Excel",
+            "Word"
+          ],
+          "extracted_preview": [
+            "Lotus Notes",
+            "Citrix"
+          ],
+          "notes": []
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.46794871794871795,
+          "gold_count": 3,
+          "extracted_count": 3,
+          "matched_count": 1,
+          "missing_count": 2,
+          "unexpected_count": 2,
+          "gold_preview": [
+            "Customer Service \u00b7 daily",
+            "the Health Marketplace \u00b7 three and a half years",
+            "Assisted \u00b7 2016"
+          ],
+          "extracted_preview": [
+            "Customer Service Specialist III \u00b7 Mar 2016 - Aug 2016",
+            "Deputy City Clerk \u00b7 Company Name \u00b7 Sep 2015 - Feb 2016",
+            "Information Technical Assistant \u00b7 Sep 2007 - Jul 2010"
+          ],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.5713470319634703,
+          "gold_count": 1,
+          "extracted_count": 3,
+          "matched_count": 1,
+          "missing_count": 0,
+          "unexpected_count": 2,
+          "gold_preview": [
+            "Grand Canyon University Government & Policy Masters of Science , Criminal Justice - Administration of Justice & Security"
+          ],
+          "extracted_preview": [
+            "Masters of Public Adm in \u00b7 Masters of Public Adm inistration , Governm ent & Policy August 2012 Grand Canyon University Governm ent & Policy \u00b7 istration ,",
+            "Masters of Science \u00b7 Masters of Science , Crim inal Justice - Adm inistration of Justice & Security June 2010 University of Phoenix Crim inal Justice - Adm inistration of Justice & Security \u00b7 Justice",
+            "Bachelors of Science \u00b7 Bachelors of Science , Business Organizational Managem ent May 2005 The Kings College Business Organizational Managem ent Associates Degree , Administrative Occupational Studies May 2003 Olean Business Institute Adm inistrative Occupational Studies Skills \u00b7 Business Organizational"
+          ],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "21763056",
+      "category": "ACCOUNTANT",
+      "filename": "ACCOUNTANT__21763056.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ACCOUNTANT__21763056.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.5145331058327834,
+      "gold_fields_available": 3,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.7,
+        "validation_status": "needs_review",
+        "validation_score": 50,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 2,
+        "block_count": 16
+      },
+      "extracted_snapshot": {
+        "full_name": "Professional Sum m ary",
+        "headline": "ACCOUNTANT",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 55,
+        "experience_count": 1,
+        "education_count": 2,
+        "project_count": 0,
+        "top_skills": [
+          "account reconciliation",
+          "accounting",
+          "accounts payable",
+          "accruals",
+          "accrual",
+          "balance sheet",
+          "Balance",
+          "balance sheets",
+          "bank reconciliation",
+          "benefits"
+        ],
+        "top_experience": [
+          "Staff Accountant/ Lease Adm inistrator \u00b7 March 2001 - Current"
+        ],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 1,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [
+            "Professional Sum m ary"
+          ],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "miss",
+          "score": 0.256140350877193,
+          "gold_count": 2,
+          "extracted_count": 55,
+          "matched_count": 2,
+          "missing_count": 0,
+          "unexpected_count": 53,
+          "gold_preview": [
+            "Excel",
+            "Word"
+          ],
+          "extracted_preview": [
+            "account reconciliation",
+            "accounting",
+            "accounts payable",
+            "accruals",
+            "accrual",
+            "balance sheet",
+            "Balance",
+            "balance sheets"
+          ],
+          "notes": []
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.5586734693877551,
+          "gold_count": 3,
+          "extracted_count": 1,
+          "matched_count": 1,
+          "missing_count": 2,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Current Company Name \u00b7 March 2001",
+            "Prepare Inter \u00b7 monthly",
+            "Validate \u00b7 monthly"
+          ],
+          "extracted_preview": [
+            "Staff Accountant/ Lease Adm inistrator \u00b7 March 2001 - Current"
+          ],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.7307692307692307,
+          "gold_count": 1,
+          "extracted_count": 2,
+          "matched_count": 1,
+          "missing_count": 0,
+          "unexpected_count": 1,
+          "gold_preview": [
+            "Master \u00b7 Accounting Gujarat University India Accounting Computer Programming"
+          ],
+          "extracted_preview": [
+            "Master degree \u00b7 Master degree : Accounting Gujarat University India Accounting \u00b7 Accounting",
+            "Computer Programming in COBOL language, Triton College in River Grove, IL * 1"
+          ],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    },
+    {
+      "resume_id": "20604208",
+      "category": "ADVOCATE",
+      "filename": "ADVOCATE__20604208.pdf",
+      "file_path": "/home/divyesh-nandlal-vishwakarma/Downloads/ragume_benchmark_gold_v0/sample_pdfs/ADVOCATE__20604208.pdf",
+      "parser_backend": "docling_structured",
+      "extraction_mode": "docling_ner_local",
+      "status": "ok",
+      "overall_score": 0.5511212662635148,
+      "gold_fields_available": 4,
+      "warnings": [
+        "Emails is missing or weak.",
+        "Phones is missing or weak.",
+        "Projects is missing or weak.",
+        "GPT formatter was not used for this parse."
+      ],
+      "error": null,
+      "diagnostics": {
+        "document_role": "general_resume",
+        "profile_focus": "master",
+        "source_quality": 0.7,
+        "validation_status": "needs_review",
+        "validation_score": 50,
+        "layout_parser": "pymupdf_layout",
+        "page_count": 2,
+        "block_count": 19
+      },
+      "extracted_snapshot": {
+        "full_name": "CASE",
+        "headline": "CASE MANAGER/OUTREACH ADVOCATE Summary",
+        "location": null,
+        "emails": [],
+        "phones": [],
+        "skills_count": 22,
+        "experience_count": 1,
+        "education_count": 3,
+        "project_count": 0,
+        "top_skills": [
+          "Excellent com m unication",
+          "com puter skills",
+          "copying",
+          "counseling",
+          "data entry",
+          "docum entation",
+          "faxing",
+          "filing",
+          "financial planning",
+          "goal setting"
+        ],
+        "top_experience": [
+          "Case Manager/Outreach Advocate \u00b7 Company \u00b7 June 2008 - October 2014"
+        ],
+        "top_projects": []
+      },
+      "field_scores": [
+        {
+          "field": "name",
+          "label": "Name",
+          "status": "match",
+          "score": 1.0,
+          "gold_count": 1,
+          "extracted_count": 1,
+          "matched_count": 1,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Case Worker"
+          ],
+          "extracted_preview": [
+            "CASE"
+          ],
+          "notes": []
+        },
+        {
+          "field": "email",
+          "label": "Email",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "phone",
+          "label": "Phone",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "location",
+          "label": "Location",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "summary",
+          "label": "Summary",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "links",
+          "label": "Links",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "skills",
+          "label": "Skills",
+          "status": "miss",
+          "score": 0.33333333333333337,
+          "gold_count": 2,
+          "extracted_count": 22,
+          "matched_count": 2,
+          "missing_count": 0,
+          "unexpected_count": 20,
+          "gold_preview": [
+            "Excel",
+            "Word"
+          ],
+          "extracted_preview": [
+            "Excellent com m unication",
+            "com puter skills",
+            "copying",
+            "counseling",
+            "data entry",
+            "docum entation",
+            "faxing",
+            "filing"
+          ],
+          "notes": []
+        },
+        {
+          "field": "experience",
+          "label": "Experience",
+          "status": "miss",
+          "score": 0.580607476635514,
+          "gold_count": 3,
+          "extracted_count": 1,
+          "matched_count": 1,
+          "missing_count": 2,
+          "unexpected_count": 0,
+          "gold_preview": [
+            "Caseworker/Outreach Advocate \u00b7 June 2008 to October 2014",
+            "the Integrated Tracking System Maintaining \u00b7 monthly",
+            "Answer \u00b7 daily"
+          ],
+          "extracted_preview": [
+            "Case Manager/Outreach Advocate \u00b7 Company \u00b7 June 2008 - October 2014"
+          ],
+          "notes": []
+        },
+        {
+          "field": "education",
+          "label": "Education",
+          "status": "miss",
+          "score": 0.625,
+          "gold_count": 1,
+          "extracted_count": 3,
+          "matched_count": 1,
+          "missing_count": 0,
+          "unexpected_count": 2,
+          "gold_preview": [
+            "May1992 Houston Community College \u00ef\u00bc\u200b City"
+          ],
+          "extracted_preview": [
+            "No Degree \u00b7 No Degree : Psychology , May1992 Houston Community College \u00ef\u00bc City , State , USA \u00b7 Psychology",
+            "High School Diploma \u00b7 High School Diploma : June 1990 Forest Brook High School \u00ef\u00bc City , State , USA",
+            "No Degree \u00b7 No Degree : Business Administration , January 2012 Ham pton University \u00ef\u00bc City , State , USA \u00b7 Business Administration"
+          ],
+          "notes": []
+        },
+        {
+          "field": "projects",
+          "label": "Projects",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "certifications",
+          "label": "Certifications",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        },
+        {
+          "field": "achievements",
+          "label": "Achievements",
+          "status": "not_scored",
+          "score": null,
+          "gold_count": 0,
+          "extracted_count": 0,
+          "matched_count": 0,
+          "missing_count": 0,
+          "unexpected_count": 0,
+          "gold_preview": [],
+          "extracted_preview": [],
+          "notes": [
+            "Gold field is empty in the benchmark template."
+          ]
+        }
+      ]
+    }
+  ]
+}

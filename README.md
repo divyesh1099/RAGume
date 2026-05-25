@@ -62,6 +62,7 @@ Pages:
 - `http://127.0.0.1:8000/` for evidence upload and claim review
 - `http://127.0.0.1:8000/job` for pasting or uploading a job description
 - `http://127.0.0.1:8000/wiki` for browsing the approved profile wiki
+- `http://127.0.0.1:8000/benchmarks` for running the parser benchmark against a gold resume dataset
 
 4. API docs remain available at:
 
@@ -74,6 +75,9 @@ All settings are optional for local development.
 ```bash
 DATABASE_URL=sqlite:///./data/app.db
 UPLOADS_DIR=./data/uploads
+BENCHMARK_DATASET_DIR=
+BENCHMARK_REPORTS_DIR=./data/benchmark-reports
+BENCHMARK_DEFAULT_LIMIT=12
 MAX_CHUNK_CHARS=1200
 CHUNK_OVERLAP_CHARS=160
 CLAIM_CONTEXT_TOP_K=6
@@ -97,6 +101,40 @@ If document cards show embeddings as disabled or failed, check `ENABLE_EMBEDDING
 If you want parser-only resume extraction without API refinement, leave `ENABLE_RESUME_GPT_FORMATTER=false`.
 
 ## Core API flow
+
+## Benchmarking
+
+If you have a gold dataset such as `~/Downloads/ragume_benchmark_gold_v0`, set:
+
+```bash
+BENCHMARK_DATASET_DIR=/home/your-user/Downloads/ragume_benchmark_gold_v0
+```
+
+Then open:
+
+`http://127.0.0.1:8000/benchmarks`
+
+The benchmark runner:
+
+- loads `gold_annotation_template.csv` as the source of truth
+- resolves files using `sample_pdf_manifest.csv`
+- runs the same extraction pipeline the app uses
+- scores fields like skills, experience, education, projects, links, and core identity fields
+- saves the latest report under `BENCHMARK_REPORTS_DIR`
+
+You can also trigger it by API:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/benchmark/run" \
+  -H "Content-Type: application/json" \
+  -d '{"parser_backend":"auto","limit":12,"allow_remote_models":false}'
+```
+
+And inspect the latest saved report:
+
+```bash
+curl "http://127.0.0.1:8000/benchmark/latest"
+```
 
 ### 0. Create or list profiles
 

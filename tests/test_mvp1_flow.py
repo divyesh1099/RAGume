@@ -49,7 +49,7 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
         transport = httpx.ASGITransport(app=app)
 
         async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-            for route in ("/login", "/register", "/profiles/select", "/", "/job", "/wiki", "/profile"):
+            for route in ("/login", "/register", "/profiles/select", "/", "/job", "/wiki", "/profile", "/benchmarks"):
                 response = await client.get(route)
                 assert response.status_code == 200
                 assert "text/html" in response.headers["content-type"]

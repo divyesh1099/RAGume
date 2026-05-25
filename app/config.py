@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     app_name: str = "RAG Resume Customizer"
     database_url: str = "sqlite:///./data/app.db"
     uploads_dir: str = "./data/uploads"
+    benchmark_dataset_dir: str | None = None
+    benchmark_reports_dir: str = "./data/benchmark-reports"
+    benchmark_default_limit: int = Field(default=12, ge=1, le=500)
     resume_parser_backend: str = "auto"
     max_chunk_chars: int = Field(default=1200, ge=400, le=5000)
     chunk_overlap_chars: int = Field(default=160, ge=0, le=1000)

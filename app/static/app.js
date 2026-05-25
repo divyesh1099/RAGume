@@ -16,6 +16,8 @@ const state = {
   profileFusion: null,
   profileStudioBucket: "review",
   profileStudioSectionByBucket: {},
+  benchmarkDataset: null,
+  benchmarkReport: null,
   documents: [],
   selectedDocumentId: null,
   claims: [],
@@ -164,6 +166,22 @@ const elements = {
   profileDiagnosticsSummary: document.querySelector("#profile-diagnostics-summary"),
   profileDiagnosticsSources: document.querySelector("#profile-diagnostics-sources"),
   profileDiagnosticsRecords: document.querySelector("#profile-diagnostics-records"),
+
+  benchmarkMetricCases: document.querySelector("#benchmark-metric-cases"),
+  benchmarkMetricCategories: document.querySelector("#benchmark-metric-categories"),
+  benchmarkMetricLastRun: document.querySelector("#benchmark-metric-last-run"),
+  benchmarkMetricScore: document.querySelector("#benchmark-metric-score"),
+  benchmarkBackendSelect: document.querySelector("#benchmark-backend-select"),
+  benchmarkCategorySelect: document.querySelector("#benchmark-category-select"),
+  benchmarkLimitInput: document.querySelector("#benchmark-limit-input"),
+  benchmarkRemoteToggle: document.querySelector("#benchmark-remote-toggle"),
+  benchmarkRunButton: document.querySelector("#benchmark-run-button"),
+  benchmarkRunStatus: document.querySelector("#benchmark-run-status"),
+  benchmarkDatasetSummary: document.querySelector("#benchmark-dataset-summary"),
+  benchmarkFieldCoverage: document.querySelector("#benchmark-field-coverage"),
+  benchmarkSummaryGrid: document.querySelector("#benchmark-summary-grid"),
+  benchmarkFieldMetrics: document.querySelector("#benchmark-field-metrics"),
+  benchmarkCaseResults: document.querySelector("#benchmark-case-results"),
 
   wikiArticleCount: document.querySelector("#wiki-article-count"),
   wikiSearchInput: document.querySelector("#wiki-search-input"),
@@ -592,6 +610,28 @@ function renderParserBackendControls() {
   }
 }
 
+function renderBenchmarkBackendControls() {
+  if (!elements.benchmarkBackendSelect) {
+    return;
+  }
+
+  ensureSelectedParserBackend();
+  const options = [
+    AUTO_PARSER_BACKEND,
+    ...(state.parserBackends.length
+      ? state.parserBackends
+      : [{ id: "layout_ner", label: "Layout + NER", description: "Default parser.", available: true, is_default: true }]),
+  ];
+
+  elements.benchmarkBackendSelect.innerHTML = options
+    .map((backend) => `
+      <option value="${escapeHtml(backend.id)}" ${backend.id === state.selectedParserBackend ? "selected" : ""} ${backend.available ? "" : "disabled"}>
+        ${escapeHtml(backend.label)}${backend.id !== AUTO_PARSER_BACKEND.id && backend.is_default ? " (Default)" : ""}${backend.available ? "" : " (Unavailable)"}
+      </option>
+    `)
+    .join("");
+}
+
 function renderSummary() {
   if (!state.summary) {
     return;
@@ -628,6 +668,246 @@ function renderSummary() {
       : " Retrieval currently uses lexical and structural matching only.";
     elements.engineSummary.textContent = `${extractorText}${retrievalText}`;
   }
+}
+
+function benchmarkCategoryValue() {
+  return elements.benchmarkCategorySelect?.value?.trim() || "";
+}
+
+function benchmarkLimitValue() {
+  const raw = Number(elements.benchmarkLimitInput?.value || "");
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return null;
+  }
+  return Math.round(raw);
+}
+
+function benchmarkStatusChipClass(status) {
+  if (status === "match") {
+    return "success";
+  }
+  if (status === "close") {
+    return "warning";
+  }
+  if (status === "miss" || status === "error") {
+    return "danger";
+  }
+  return "";
+}
+
+function benchmarkPercent(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "--";
+  }
+  return `${confidencePercent(value)}%`;
+}
+
+function benchmarkFieldMetricCard(metric) {
+  return `
+    <article class="detail-card benchmark-field-card">
+      <div class="meta-row">
+        <strong>${escapeHtml(metric.label)}</strong>
+        <span class="chip ${benchmarkStatusChipClass((metric.average_score || 0) >= 0.95 ? "match" : (metric.average_score || 0) >= 0.75 ? "close" : "miss")}">${benchmarkPercent(metric.average_score)}</span>
+      </div>
+      <div class="detail-line">Scored cases: ${escapeHtml(String(metric.scored_cases || 0))}</div>
+      <div class="detail-line">Matches: ${escapeHtml(String(metric.match_cases || 0))} · Close: ${escapeHtml(String(metric.close_cases || 0))} · Misses: ${escapeHtml(String(metric.miss_cases || 0))}</div>
+      <div class="detail-line">Skipped: ${escapeHtml(String(metric.skipped_cases || 0))}</div>
+    </article>
+  `;
+}
+
+function benchmarkFieldScoreCard(fieldScore) {
+  const goldPreview = (fieldScore.gold_preview || []).length
+    ? (fieldScore.gold_preview || []).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")
+    : '<span class="empty-inline">No gold value.</span>';
+  const extractedPreview = (fieldScore.extracted_preview || []).length
+    ? (fieldScore.extracted_preview || []).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")
+    : '<span class="empty-inline">Nothing extracted.</span>';
+  return `
+    <article class="detail-card benchmark-case-field-card">
+      <div class="meta-row">
+        <strong>${escapeHtml(fieldScore.label)}</strong>
+        <span class="chip ${benchmarkStatusChipClass(fieldScore.status)}">${escapeHtml(String(fieldScore.status || "not_scored").replaceAll("_", " ").toUpperCase())}</span>
+        <span class="meta-text">${benchmarkPercent(fieldScore.score)}</span>
+      </div>
+      <div class="detail-line">Gold ${escapeHtml(String(fieldScore.gold_count || 0))} · Extracted ${escapeHtml(String(fieldScore.extracted_count || 0))} · Matched ${escapeHtml(String(fieldScore.matched_count || 0))}</div>
+      <div class="stack-list compact-stack">
+        <div>
+          <div class="field-label">Gold</div>
+          <div class="tag-row">${goldPreview}</div>
+        </div>
+        <div>
+          <div class="field-label">Extracted</div>
+          <div class="tag-row">${extractedPreview}</div>
+        </div>
+      </div>
+      ${(fieldScore.notes || []).length
+        ? `<div class="stack-list compact-stack">${(fieldScore.notes || []).map((note) => `<div class="detail-line">${escapeHtml(note)}</div>`).join("")}</div>`
+        : ""}
+    </article>
+  `;
+}
+
+function renderBenchmarkDataset() {
+  const dataset = state.benchmarkDataset;
+  const report = state.benchmarkReport;
+
+  if (elements.currentProfileName && page === "benchmarks") {
+    elements.currentProfileName.textContent = dataset?.available
+      ? `${dataset.total_cases} benchmark resumes ready`
+      : "Benchmark dataset not available";
+  }
+  if (elements.currentProfileMeta && page === "benchmarks") {
+    elements.currentProfileMeta.textContent = dataset?.dataset_dir
+      ? dataset.dataset_dir
+      : "Set BENCHMARK_DATASET_DIR or place the dataset in ~/Downloads/ragume_benchmark_gold_v0.";
+  }
+  if (elements.engineSummary && page === "benchmarks") {
+    if (report) {
+      elements.engineSummary.textContent = `Latest run: ${report.processed_cases} resumes · ${benchmarkPercent(report.overall_score)} overall · ${report.parser_backend} backend${report.allow_remote_models ? " · remote models allowed" : " · local-safe mode"}.`;
+    } else if (dataset?.available) {
+      elements.engineSummary.textContent = "The benchmark runner compares parser output against the gold template and saves the latest report for this page.";
+    } else {
+      elements.engineSummary.textContent = "Benchmark runner is waiting for the gold dataset.";
+    }
+  }
+
+  if (elements.benchmarkMetricCases) {
+    elements.benchmarkMetricCases.textContent = String(dataset?.total_cases || 0);
+  }
+  if (elements.benchmarkMetricCategories) {
+    elements.benchmarkMetricCategories.textContent = String(dataset?.categories?.length || 0);
+  }
+  if (elements.benchmarkMetricLastRun) {
+    elements.benchmarkMetricLastRun.textContent = report ? String(report.processed_cases || 0) : "0";
+  }
+  if (elements.benchmarkMetricScore) {
+    elements.benchmarkMetricScore.textContent = benchmarkPercent(report?.overall_score);
+  }
+
+  if (elements.benchmarkRunStatus) {
+    if (!dataset?.available) {
+      elements.benchmarkRunStatus.textContent = "Benchmark dataset not found. Add BENCHMARK_DATASET_DIR to .env or place the dataset in ~/Downloads/ragume_benchmark_gold_v0.";
+    } else if (report) {
+      elements.benchmarkRunStatus.textContent = `Last run saved at ${report.saved_report_path || "latest.json"} · ${report.success_cases} succeeded · ${report.failed_cases} failed · ${report.duration_seconds}s.`;
+    } else {
+      elements.benchmarkRunStatus.textContent = "The benchmark runner will compare extracted output against the gold template at the configured dataset path.";
+    }
+  }
+
+  if (elements.benchmarkCategorySelect) {
+    const currentValue = benchmarkCategoryValue();
+    const categories = dataset?.categories || [];
+    elements.benchmarkCategorySelect.innerHTML = `
+      <option value="">All categories</option>
+      ${categories.map((category) => `<option value="${escapeHtml(category)}" ${category === currentValue ? "selected" : ""}>${escapeHtml(category)}</option>`).join("")}
+    `;
+  }
+
+  if (elements.benchmarkDatasetSummary) {
+    if (!dataset) {
+      elements.benchmarkDatasetSummary.innerHTML = '<div class="empty-state">Dataset coverage details will appear here.</div>';
+    } else {
+      elements.benchmarkDatasetSummary.innerHTML = `
+        <div class="detail-line">Gold template: ${escapeHtml(dataset.gold_template_path || "Not found")}</div>
+        <div class="detail-line">Manifest: ${escapeHtml(dataset.manifest_path || "Not found")}</div>
+        <div class="detail-line">Review status counts: ${escapeHtml(Object.entries(dataset.review_status_counts || {}).map(([status, count]) => `${status} ${count}`).join(" · ") || "No review metadata")}</div>
+        <div class="detail-line">Latest saved report: ${escapeHtml(dataset.latest_report_generated_at ? formatDate(dataset.latest_report_generated_at) : "None yet")}</div>
+      `;
+    }
+  }
+
+  if (elements.benchmarkFieldCoverage) {
+    const coverage = dataset?.field_coverage || {};
+    const entries = Object.entries(coverage).filter(([, count]) => count > 0);
+    elements.benchmarkFieldCoverage.innerHTML = entries.length
+      ? entries
+          .sort((left, right) => right[1] - left[1])
+          .map(([field, count]) => `<span class="tag">${escapeHtml(formatSectionLabel(field))} · ${escapeHtml(String(count))}</span>`)
+          .join("")
+      : '<span class="empty-inline">Coverage tags will appear here.</span>';
+  }
+}
+
+function renderBenchmarkReport() {
+  const report = state.benchmarkReport;
+  if (!elements.benchmarkSummaryGrid || !elements.benchmarkFieldMetrics || !elements.benchmarkCaseResults) {
+    return;
+  }
+
+  if (!report) {
+    elements.benchmarkSummaryGrid.innerHTML = '<div class="empty-state">Run the benchmark to see aggregate metrics.</div>';
+    elements.benchmarkFieldMetrics.innerHTML = '<div class="empty-state">Field-level benchmark metrics will appear here after a run.</div>';
+    elements.benchmarkCaseResults.innerHTML = '<div class="empty-state">Per-resume benchmark results will appear here after a run.</div>';
+    return;
+  }
+
+  elements.benchmarkSummaryGrid.innerHTML = `
+    <article class="detail-card">
+      <div class="detail-card-title">Run summary</div>
+      <div class="detail-line">${escapeHtml(String(report.processed_cases || 0))} processed · ${escapeHtml(String(report.success_cases || 0))} succeeded · ${escapeHtml(String(report.failed_cases || 0))} failed</div>
+      <div class="detail-line">Overall score: ${escapeHtml(benchmarkPercent(report.overall_score))}</div>
+      <div class="detail-line">Backend: ${escapeHtml(report.parser_backend || "auto")} · ${report.allow_remote_models ? "remote models allowed" : "local-safe mode"}</div>
+    </article>
+    <article class="detail-card">
+      <div class="detail-card-title">Scope</div>
+      <div class="detail-line">Dataset: ${escapeHtml(report.dataset_dir || "unknown")}</div>
+      <div class="detail-line">Categories: ${escapeHtml((report.categories || []).join(", ") || "All")}</div>
+      <div class="detail-line">Limit: ${escapeHtml(String(report.limit || "All"))}</div>
+    </article>
+    <article class="detail-card">
+      <div class="detail-card-title">Timing</div>
+      <div class="detail-line">Generated: ${escapeHtml(formatDate(report.generated_at))}</div>
+      <div class="detail-line">Duration: ${escapeHtml(String(report.duration_seconds || 0))}s</div>
+      <div class="detail-line">Saved report: ${escapeHtml(report.saved_report_path || "Not saved")}</div>
+    </article>
+  `;
+
+  elements.benchmarkFieldMetrics.innerHTML = (report.field_metrics || []).length
+    ? report.field_metrics.map((metric) => benchmarkFieldMetricCard(metric)).join("")
+    : '<div class="empty-state">No field metrics were recorded.</div>';
+
+  elements.benchmarkCaseResults.innerHTML = (report.cases || []).length
+    ? report.cases.map((item) => `
+        <details class="benchmark-case-card"${item.status === "error" ? "" : " open"}>
+          <summary>
+            <div class="meta-row">
+              <strong>${escapeHtml(item.filename)}</strong>
+              <span class="chip">${escapeHtml(item.category)}</span>
+              <span class="chip ${benchmarkStatusChipClass(item.status === "error" ? "error" : (item.overall_score || 0) >= 0.95 ? "match" : (item.overall_score || 0) >= 0.75 ? "close" : "miss")}">${item.status === "error" ? "ERROR" : benchmarkPercent(item.overall_score)}</span>
+            </div>
+            <div class="meta-text">${escapeHtml(item.resume_id)} · ${escapeHtml(item.parser_backend || "auto")} · ${escapeHtml(item.extraction_mode || "unknown mode")}</div>
+          </summary>
+          <div class="benchmark-case-body">
+            ${item.error ? `<div class="detail-line warning-line">${escapeHtml(item.error)}</div>` : ""}
+            ${(item.warnings || []).length
+              ? `<div class="stack-list compact-stack">${(item.warnings || []).map((warning) => `<div class="detail-line warning-line">${escapeHtml(warning)}</div>`).join("")}</div>`
+              : ""}
+            <div class="detail-grid">
+              ${fieldPreviewCard("Extracted snapshot", [
+                item.extracted_snapshot?.full_name ? `Name: ${item.extracted_snapshot.full_name}` : null,
+                item.extracted_snapshot?.headline ? `Headline: ${item.extracted_snapshot.headline}` : null,
+                item.extracted_snapshot?.location ? `Location: ${item.extracted_snapshot.location}` : null,
+                `Skills: ${item.extracted_snapshot?.skills_count || 0}`,
+                `Experience: ${item.extracted_snapshot?.experience_count || 0}`,
+                `Projects: ${item.extracted_snapshot?.project_count || 0}`,
+              ].filter(Boolean))}
+              ${fieldPreviewCard("Diagnostics", [
+                item.diagnostics?.document_role ? `Role: ${item.diagnostics.document_role}` : null,
+                item.diagnostics?.profile_focus ? `Focus: ${item.diagnostics.profile_focus}` : null,
+                item.diagnostics?.validation_status ? `Validation: ${item.diagnostics.validation_status} (${item.diagnostics.validation_score ?? "--"})` : null,
+                item.diagnostics?.layout_parser ? `Layout parser: ${item.diagnostics.layout_parser}` : null,
+                item.diagnostics?.page_count ? `Pages: ${item.diagnostics.page_count}` : null,
+                item.diagnostics?.block_count ? `Blocks: ${item.diagnostics.block_count}` : null,
+              ].filter(Boolean))}
+            </div>
+            <div class="benchmark-case-fields">
+              ${(item.field_scores || []).map((fieldScore) => benchmarkFieldScoreCard(fieldScore)).join("")}
+            </div>
+          </div>
+        </details>
+      `).join("")
+    : '<div class="empty-state">Per-resume benchmark results will appear here after a run.</div>';
 }
 
 function selectedDocumentInsights() {
@@ -2760,13 +3040,68 @@ async function loadProfiles() {
 }
 
 async function loadResumeParsers() {
-  if (!elements.parserBackendSelect && page !== "evidence") {
+  if (!elements.parserBackendSelect && !elements.benchmarkBackendSelect && page !== "evidence" && page !== "benchmarks") {
     return;
   }
   state.parserBackends = await apiFetch("/resume-parsers");
   ensureSelectedParserBackend();
   renderParserBackendControls();
+  renderBenchmarkBackendControls();
   renderSummary();
+}
+
+async function loadBenchmarkDataset() {
+  if (!elements.benchmarkRunButton) {
+    return;
+  }
+  state.benchmarkDataset = await apiFetch("/benchmark/dataset");
+  if (elements.benchmarkLimitInput && !elements.benchmarkLimitInput.value) {
+    elements.benchmarkLimitInput.value = String(Math.min(Math.max(state.benchmarkDataset?.total_cases || 1, 1), 12));
+  }
+  renderBenchmarkDataset();
+}
+
+async function loadLatestBenchmarkReport() {
+  if (!elements.benchmarkRunButton) {
+    return;
+  }
+  try {
+    state.benchmarkReport = await apiFetch("/benchmark/latest");
+  } catch (error) {
+    if (error.status !== 404) {
+      throw error;
+    }
+    state.benchmarkReport = null;
+  }
+  renderBenchmarkDataset();
+  renderBenchmarkReport();
+}
+
+async function runBenchmarkReport() {
+  if (!elements.benchmarkRunButton) {
+    return;
+  }
+
+  try {
+    setLoading(elements.benchmarkRunButton, true, "Running...");
+    const selectedCategory = benchmarkCategoryValue();
+    state.benchmarkReport = await apiFetch("/benchmark/run", {
+      method: "POST",
+      body: JSON.stringify({
+        parser_backend: elements.benchmarkBackendSelect?.value || ensureSelectedParserBackend(),
+        limit: benchmarkLimitValue(),
+        categories: selectedCategory ? [selectedCategory] : [],
+        allow_remote_models: Boolean(elements.benchmarkRemoteToggle?.checked),
+      }),
+    });
+    renderBenchmarkDataset();
+    renderBenchmarkReport();
+    showToast(`Benchmark completed for ${state.benchmarkReport.processed_cases} resumes.`);
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setLoading(elements.benchmarkRunButton, false, "Run benchmark");
+  }
 }
 
 async function loadSummary() {
@@ -2839,6 +3174,12 @@ async function refreshProfilePage() {
   await loadSummary();
   await loadProfileOverview();
   await loadProfileStudioReview();
+}
+
+async function refreshBenchmarksPage() {
+  await loadResumeParsers();
+  await loadBenchmarkDataset();
+  await loadLatestBenchmarkReport();
 }
 
 async function logout() {
@@ -3393,6 +3734,15 @@ function bindProfilePage() {
   });
 }
 
+function bindBenchmarksPage() {
+  bindSharedWorkspaceActions();
+  elements.benchmarkBackendSelect?.addEventListener("change", () => {
+    rememberSelectedParserBackend(elements.benchmarkBackendSelect.value);
+    renderBenchmarkBackendControls();
+  });
+  elements.benchmarkRunButton?.addEventListener("click", runBenchmarkReport);
+}
+
 function bindAuthPages() {
   elements.loginForm?.addEventListener("submit", handleLogin);
   elements.registerForm?.addEventListener("submit", handleRegister);
@@ -3497,6 +3847,15 @@ async function initWikiPage() {
   await refreshWikiPage();
 }
 
+async function initBenchmarksPage() {
+  const authenticated = await ensureAuthenticated();
+  if (!authenticated) {
+    return;
+  }
+  bindBenchmarksPage();
+  await refreshBenchmarksPage();
+}
+
 async function init() {
   try {
     if (page === "login") {
@@ -3521,6 +3880,10 @@ async function init() {
     }
     if (page === "wiki") {
       await initWikiPage();
+      return;
+    }
+    if (page === "benchmarks") {
+      await initBenchmarksPage();
       return;
     }
     await initEvidencePage();

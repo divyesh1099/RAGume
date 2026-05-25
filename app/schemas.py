@@ -546,3 +546,88 @@ class WikiArticleRead(BaseModel):
 class ProfileWikiRead(BaseModel):
     generated_at: dt.datetime
     articles: list[WikiArticleRead] = Field(default_factory=list)
+
+
+class BenchmarkRunRequest(BaseModel):
+    parser_backend: str = "auto"
+    limit: int | None = Field(default=None, ge=1, le=500)
+    categories: list[str] = Field(default_factory=list)
+    resume_ids: list[str] = Field(default_factory=list)
+    allow_remote_models: bool = False
+
+
+class BenchmarkDatasetRead(BaseModel):
+    dataset_dir: str | None = None
+    available: bool
+    gold_template_path: str | None = None
+    manifest_path: str | None = None
+    total_cases: int = 0
+    categories: list[str] = Field(default_factory=list)
+    review_status_counts: dict[str, int] = Field(default_factory=dict)
+    field_coverage: dict[str, int] = Field(default_factory=dict)
+    latest_report_generated_at: dt.datetime | None = None
+    latest_report_parser_backend: str | None = None
+    latest_report_overall_score: float | None = None
+    latest_report_path: str | None = None
+
+
+class BenchmarkFieldMetricRead(BaseModel):
+    field: str
+    label: str
+    scored_cases: int = 0
+    skipped_cases: int = 0
+    average_score: float | None = None
+    match_cases: int = 0
+    close_cases: int = 0
+    miss_cases: int = 0
+
+
+class BenchmarkFieldScoreRead(BaseModel):
+    field: str
+    label: str
+    status: str
+    score: float | None = None
+    gold_count: int = 0
+    extracted_count: int = 0
+    matched_count: int = 0
+    missing_count: int = 0
+    unexpected_count: int = 0
+    gold_preview: list[str] = Field(default_factory=list)
+    extracted_preview: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class BenchmarkCaseResultRead(BaseModel):
+    resume_id: str
+    category: str
+    filename: str
+    file_path: str
+    parser_backend: str
+    extraction_mode: str | None = None
+    status: str
+    overall_score: float | None = None
+    gold_fields_available: int = 0
+    warnings: list[str] = Field(default_factory=list)
+    error: str | None = None
+    diagnostics: dict = Field(default_factory=dict)
+    extracted_snapshot: dict = Field(default_factory=dict)
+    field_scores: list[BenchmarkFieldScoreRead] = Field(default_factory=list)
+
+
+class BenchmarkRunRead(BaseModel):
+    generated_at: dt.datetime
+    dataset_dir: str
+    parser_backend: str
+    allow_remote_models: bool = False
+    limit: int | None = None
+    categories: list[str] = Field(default_factory=list)
+    resume_ids: list[str] = Field(default_factory=list)
+    total_cases: int = 0
+    processed_cases: int = 0
+    success_cases: int = 0
+    failed_cases: int = 0
+    overall_score: float | None = None
+    duration_seconds: float = 0.0
+    saved_report_path: str | None = None
+    field_metrics: list[BenchmarkFieldMetricRead] = Field(default_factory=list)
+    cases: list[BenchmarkCaseResultRead] = Field(default_factory=list)

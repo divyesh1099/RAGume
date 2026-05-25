@@ -14,6 +14,9 @@ from app.db import get_session_async, init_db, init_engine, session_scope
 from app.models import Claim, Document, Profile, ProfileClaim, ProfileGraphEdge, ProfileGraphNode, StructuredProfileClaim, User
 from app.schemas import (
     AuthSessionRead,
+    BenchmarkDatasetRead,
+    BenchmarkRunRead,
+    BenchmarkRunRequest,
     ClaimDetailRead,
     ClaimEntityRead,
     ClaimExtractionRequest,
@@ -51,6 +54,7 @@ from app.schemas import (
     StructuredProfileReviewRead,
     UserRead,
 )
+from app.services.benchmarking import benchmark_dataset_summary, load_latest_benchmark_report, run_resume_benchmark
 from app.services.auth import (
     SESSION_COOKIE_NAME,
     authenticate_user,
@@ -444,6 +448,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def wiki_page() -> FileResponse:
         return FileResponse(STATIC_DIR / "wiki.html")
 
+    @app.get("/benchmarks", include_in_schema=False)
+    async def benchmarks_page() -> FileResponse:
+        return FileResponse(STATIC_DIR / "benchmarks.html")
+
     @app.get("/profile", include_in_schema=False)
     async def profile_page() -> FileResponse:
         return FileResponse(STATIC_DIR / "profile.html")
@@ -526,6 +534,46 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> list[ResumeParserBackendRead]:
         del current_user
         return [ResumeParserBackendRead(**item) for item in resume_parser_backends(resolved_settings)]
+
+    @app.get("/benchmark/dataset", response_model=BenchmarkDatasetRead)
+    async def get_benchmark_dataset(
+        current_user: User = Depends(get_current_user),
+        app_settings: Settings = Depends(get_app_settings),
+    ) -> BenchmarkDatasetRead:
+        del current_user
+        return BenchmarkDatasetRead(**benchmark_dataset_summary(app_settings))
+
+    @app.get("/benchmark/latest", response_model=BenchmarkRunRead)
+    async def get_latest_benchmark_report(
+        current_user: User = Depends(get_current_user),
+        app_settings: Settings = Depends(get_app_settings),
+    ) -> BenchmarkRunRead:
+        del current_user
+        latest = load_latest_benchmark_report(app_settings)
+        if not latest:
+            raise HTTPException(status_code=404, detail="No saved benchmark report yet.")
+        return BenchmarkRunRead(**latest)
+
+    @app.post("/benchmark/run", response_model=BenchmarkRunRead)
+    async def run_benchmark(
+        payload: BenchmarkRunRequest,
+        current_user: User = Depends(get_current_user),
+        app_settings: Settings = Depends(get_app_settings),
+    ) -> BenchmarkRunRead:
+        del current_user
+        try:
+            parser_choice = validate_resume_parser_choice(app_settings, payload.parser_backend)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        report = run_resume_benchmark(
+            app_settings,
+            parser_backend=parser_choice or "auto",
+            limit=payload.limit,
+            categories=payload.categories,
+            resume_ids=payload.resume_ids,
+            allow_remote_models=payload.allow_remote_models,
+        )
+        return BenchmarkRunRead(**report)
 
     @app.get("/profiles", response_model=list[ProfileRead])
     async def list_profiles(
