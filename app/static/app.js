@@ -23,6 +23,7 @@ const state = {
   lastExtractionMode: null,
   lastWarnings: [],
   jdText: window.localStorage.getItem("resume_workspace_jd") || "",
+  jdExtractedJobTitle: null,
 };
 
 const presetFocusAreas = ["python", "rag", "ocr", "document ai", "backend", "llm", "ml", "automation"];
@@ -35,9 +36,54 @@ const AUTO_PARSER_BACKEND = {
 };
 const parserRichMediaSuffixes = new Set(["pdf", "png", "jpg", "jpeg", "tif", "tiff", "bmp", "webp"]);
 const jdStopwords = new Set([
-  "about", "also", "and", "are", "build", "candidate", "company", "data", "experience", "from",
-  "have", "help", "into", "looking", "must", "need", "our", "role", "team", "that", "their",
-  "this", "using", "with", "will", "work", "you", "your",
+  // Articles / conjunctions / prepositions
+  "a", "an", "and", "are", "as", "at", "be", "been", "being", "but", "by", "do", "does", "doing",
+  "for", "from", "has", "have", "having", "he", "her", "him", "his", "how", "if", "in", "into",
+  "is", "it", "its", "of", "on", "or", "our", "out", "so", "that", "the", "their", "them", "then",
+  "there", "these", "they", "this", "those", "through", "to", "too", "up", "us", "was", "we",
+  "were", "what", "when", "where", "which", "while", "who", "with", "would", "you", "your",
+  // Common JD verbs / adjectives
+  "able", "across", "also", "among", "apply", "approach", "around", "assist", "available",
+  "based", "both", "build", "building", "built", "candidate", "combine", "combining", "committed",
+  "communicate", "company", "complex", "conduct", "confident", "cross", "current", "customers",
+  "dedicated", "define", "deliver", "design", "develop", "directly", "drive", "driving",
+  "each", "effective", "efficiently", "ensure", "environment", "essential", "excellent",
+  "execute", "expertise", "familiar", "firm", "following", "global", "great", "growth",
+  "hands", "headquartered", "help", "high", "highly", "how", "ideal", "implement", "industry",
+  "innovative", "interest", "involve", "join", "key", "knowledge", "large", "lead", "leading",
+  "learn", "level", "leverage", "like", "looking", "maintain", "make", "manage", "managing",
+  "market", "meet", "mission", "more", "multiple", "must", "need", "new", "next", "one",
+  "opportunity", "other", "our", "overall", "part", "position", "possible", "practice",
+  "prefer", "preferred", "prior", "problem", "process", "product", "proficiency", "proven",
+  "provide", "quality", "required", "requirements", "responsible", "result", "role", "seek",
+  "seeking", "several", "sharp", "skilled", "skills", "solve", "solving", "stakeholders", "start",
+  "strong", "support", "take", "team", "technical", "the", "throughout", "tools", "two", "under",
+  "use", "used", "using", "value", "various", "want", "well", "will", "within", "work",
+  "working", "world", "year", "years",
+  // Company-description words that aren't skill gaps
+  "consulting", "consultant", "consultants", "clients", "client", "founded", "founding",
+  "description", "established", "headquartered", "headquarters", "located", "location",
+  "global", "international", "worldwide", "countries", "offices", "office", "paris", "france",
+  "india", "mumbai", "india", "1999", "since", "over", "more", "than", "about",
+  "launched", "chapter", "exciting", "building", "people", "eager", "shape", "ground",
+  "agility", "entrepreneurial", "energy", "startup", "backing", "reach", "brand",
+  "marks", "marking", "serving", "served", "serves", "including", "included", "many", "most",
+  "recognition", "recognised", "recognized", "emphasis", "delivering", "committed",
+  "helping", "navigate", "achieve", "transformation", "presence", "employing", "employees",
+  // Generic terms that look like requirements but aren't technical gaps
+  "information", "additional", "based", "offer", "position", "onsite", "remote",
+  "equal", "opportunity", "employer", "aspects", "employment", "hiring", "promotion",
+  "performance", "competence", "conduct", "business", "needs", "overview", "detail",
+  "details", "investing", "success", "comprehensive", "training", "programs", "resources",
+  "partners", "partner", "partnership", "service", "services", "sector", "sectors",
+  "profile", "benefits", "hybrid", "full-time", "fulltime", "part-time",
+  // Location words
+  "bengaluru", "bangalore", "karnataka", "chennai", "hyderabad", "delhi", "gurugram",
+  "noida", "pune", "kolkata", "ahmedabad", "mumbai", "india", "london", "singapore",
+  "dubai", "newyork", "california", "remote",
+  // HTML artifact tokens that appear when JD is copy-pasted from a web page
+  "nbsp", "amp", "quot", "apos", "lt", "gt", "http", "https", "www",
+  "dienstenbengaluru", "diensten", "href", "html", "span", "div", "class",
 ]);
 
 const elements = {
@@ -128,6 +174,25 @@ const elements = {
   jdMissingTerms: document.querySelector("#jd-missing-terms"),
   jdMatchedClaims: document.querySelector("#jd-matched-claims"),
   jdProfileContext: document.querySelector("#jd-profile-context"),
+  jdCompanyInput: document.querySelector("#jd-company-input"),
+  jdExtractCompanyButton: document.querySelector("#jd-extract-company-button"),
+  jdResearchButton: document.querySelector("#jd-research-button"),
+  jdResearchPanel: document.querySelector("#jd-research-panel"),
+  jdResearchHeading: document.querySelector("#jd-research-heading"),
+  jdResearchStatus: document.querySelector("#jd-research-status"),
+  jdResearchSourceChip: document.querySelector("#jd-research-source-chip"),
+  jdResearchGrid: document.querySelector("#jd-research-grid"),
+  jdCompanyCard: document.querySelector("#jd-company-card"),
+  jdCompanyNameDisplay: document.querySelector("#jd-company-name-display"),
+  jdCompanyBadges: document.querySelector("#jd-company-badges"),
+  jdCompanyDetails: document.querySelector("#jd-company-details"),
+  jdJobCard: document.querySelector("#jd-job-card"),
+  jdJobBadges: document.querySelector("#jd-job-badges"),
+  jdJobDetails: document.querySelector("#jd-job-details"),
+  jdSalaryCard: document.querySelector("#jd-salary-card"),
+  jdSalaryBadges: document.querySelector("#jd-salary-badges"),
+  jdSalaryRange: document.querySelector("#jd-salary-range"),
+  jdSalaryDetails: document.querySelector("#jd-salary-details"),
 
   profileOverviewForm: document.querySelector("#profile-overview-form"),
   profileIdentityName: document.querySelector("#profile-identity-name"),
@@ -1843,7 +1908,17 @@ function analyzeJobDescription() {
     return;
   }
 
-  const jdTokens = tokenize(jdText).filter((token) => token.length > 2 && !jdStopwords.has(token));
+  // Strip HTML tags and decode common entities before tokenizing
+  const jdClean = jdText
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#\d+;/g, " ");
+  const allJdTokens = tokenize(jdClean);
+  const jdTokenFreq = allJdTokens.reduce((acc, t) => { acc[t] = (acc[t] || 0) + 1; return acc; }, {});
+  // Keep tokens ≥4 chars, not stopwords, not pure numbers
+  const jdTokens = allJdTokens.filter(
+    (token) => token.length >= 4 && !jdStopwords.has(token) && !/^\d+$/.test(token)
+  );
   const overviewSkills = state.profileOverview?.skills || [];
   const claimSkills = unique(state.approvedClaims.flatMap((claim) => claim.skills || []));
   const approvedSkills = unique([...overviewSkills, ...claimSkills]);
@@ -1862,7 +1937,11 @@ function analyzeJobDescription() {
   const profileTokenSet = new Set(tokenize(profileCorpus));
 
   const missingTerms = unique(jdTokens)
-    .filter((token) => !profileTokenSet.has(token) && !matchedSkills.some((skill) => skill.toLowerCase() === token))
+    .filter((token) =>
+      !profileTokenSet.has(token) &&
+      !matchedSkills.some((skill) => skill.toLowerCase() === token) &&
+      (jdTokenFreq[token] >= 2 || token.length >= 7)  // mentioned 2+ times, or a long specific term
+    )
     .slice(0, 10);
 
   const rankedItems = [
@@ -2608,12 +2687,172 @@ async function uploadJobDescriptionFile() {
           : parser;
       elements.jdSourceMeta.textContent = `Loaded ${response.filename} using ${parser}${unit !== parser ? ` · ${unit}` : ""}.`;
     }
-    analyzeJobDescription();
+    autoProcessJD();
     showToast(`Loaded job description from ${response.filename}.`);
   } catch (error) {
     showToast(error.message, "error");
   } finally {
     setLoading(elements.jdUploadButton, false, "Upload JD file");
+  }
+}
+
+async function extractCompanyFromJD({ autoResearch = false } = {}) {
+  const jdText = elements.jdInput?.value?.trim();
+  if (!jdText) {
+    if (!autoResearch) showToast("Paste a job description first.", "error");
+    return;
+  }
+  try {
+    setLoading(elements.jdExtractCompanyButton, true, "Extracting...");
+    const result = await apiFetch("/job-description/extract-company", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jd_text: jdText }),
+    });
+    if (result.company_name) {
+      if (elements.jdCompanyInput) elements.jdCompanyInput.value = result.company_name;
+      state.jdExtractedJobTitle = result.job_title || null;
+      if (!autoResearch) showToast(`Extracted: ${result.company_name}${result.job_title ? ` · ${result.job_title}` : ""}`);
+      if (autoResearch) await researchCompanyAndJob();
+    } else if (!autoResearch) {
+      showToast("Could not extract company name — type it manually.", "error");
+    }
+  } catch (error) {
+    if (!autoResearch) showToast(error.message, "error");
+  } finally {
+    setLoading(elements.jdExtractCompanyButton, false, "↺ Re-extract company");
+  }
+}
+
+async function autoProcessJD() {
+  analyzeJobDescription();
+  await extractCompanyFromJD({ autoResearch: true });
+}
+
+async function researchCompanyAndJob() {
+  const companyName = elements.jdCompanyInput?.value?.trim();
+  if (!companyName) {
+    showToast("Enter a company name first.", "error");
+    return;
+  }
+  const jdText = elements.jdInput?.value?.trim() || "";
+  const jobTitle = state.jdExtractedJobTitle || "";
+
+  try {
+    setLoading(elements.jdResearchButton, true, "Researching...");
+    if (elements.jdResearchPanel) elements.jdResearchPanel.hidden = false;
+    if (elements.jdResearchStatus) elements.jdResearchStatus.textContent = "Searching the web for company and job data…";
+    if (elements.jdResearchHeading) elements.jdResearchHeading.textContent = `Researching ${companyName}`;
+
+    const result = await apiFetch("/job-description/research", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company_name: companyName, job_title: jobTitle, jd_text: jdText }),
+    });
+
+    renderResearchResults(result);
+  } catch (error) {
+    if (elements.jdResearchStatus) elements.jdResearchStatus.textContent = `Research failed: ${error.message}`;
+    showToast(error.message, "error");
+  } finally {
+    setLoading(elements.jdResearchButton, false, "Research Company");
+  }
+}
+
+function renderResearchResults(data) {
+  if (data.error && !data.company?.full_name) {
+    if (elements.jdResearchStatus) elements.jdResearchStatus.textContent = data.error;
+    return;
+  }
+
+  if (elements.jdResearchStatus) elements.jdResearchStatus.textContent = "";
+
+  if (elements.jdResearchSourceChip) {
+    const isWeb = data._web_search;
+    elements.jdResearchSourceChip.textContent = isWeb ? "Live web search" : "Training data";
+    elements.jdResearchSourceChip.className = `chip${isWeb ? " success" : ""}`;
+    elements.jdResearchSourceChip.hidden = false;
+  }
+
+  const co = data.company || {};
+  if (co.full_name && elements.jdCompanyCard) {
+    elements.jdCompanyCard.hidden = false;
+    if (elements.jdCompanyNameDisplay) elements.jdCompanyNameDisplay.textContent = co.full_name;
+    if (elements.jdCompanyBadges) {
+      const badges = [];
+      if (co.is_real != null) badges.push(`<span class="chip ${co.is_real ? "success" : "danger"}">${co.is_real ? "Verified real" : "Unverified"}</span>`);
+      if (co.is_reliable != null) badges.push(`<span class="chip ${co.is_reliable ? "success" : "danger"}">${co.is_reliable ? "Reliable" : "Questionable"}</span>`);
+      elements.jdCompanyBadges.innerHTML = badges.join(" ");
+    }
+    if (elements.jdCompanyDetails) {
+      const lines = [];
+      if (co.industry) lines.push({ label: "Industry", value: co.industry });
+      if (co.size) lines.push({ label: "Size", value: co.size });
+      if (co.founded) lines.push({ label: "Founded", value: co.founded });
+      if (co.headquarters) lines.push({ label: "HQ", value: co.headquarters });
+      if (co.website) lines.push({ label: "Website", value: co.website, url: co.website });
+      if (co.reliability_notes) lines.push({ label: "Notes", value: co.reliability_notes });
+      elements.jdCompanyDetails.innerHTML = lines.map(l =>
+        `<div class="research-line"><span class="research-line-label">${l.label}</span><span class="research-line-value">${l.url ? `<a class="research-link" href="${l.url}" target="_blank" rel="noopener">${l.value}</a>` : l.value}</span></div>`
+      ).join("");
+    }
+  }
+
+  const job = data.job || {};
+  if (elements.jdJobCard && (job.is_verified != null || job.notes)) {
+    elements.jdJobCard.hidden = false;
+    if (elements.jdJobBadges) {
+      elements.jdJobBadges.innerHTML = job.is_verified
+        ? '<span class="chip success">Active listing found</span>'
+        : '<span class="chip danger">No active listing found</span>';
+    }
+    if (elements.jdJobDetails) {
+      const lines = [];
+      if (job.location) lines.push({ label: "Location", value: job.location });
+      if (job.found_on?.length) lines.push({ label: "Found on", value: job.found_on.join(", ") });
+      if (job.notes) lines.push({ label: "Notes", value: job.notes });
+      const linksHtml = (job.job_urls || []).filter(Boolean).map(u =>
+        `<a class="research-link" href="${u}" target="_blank" rel="noopener">${u}</a>`
+      ).join("<br>");
+      elements.jdJobDetails.innerHTML =
+        lines.map(l => `<div class="research-line"><span class="research-line-label">${l.label}</span><span class="research-line-value">${l.value}</span></div>`).join("") +
+        (linksHtml ? `<div class="research-line"><span class="research-line-label">Links</span><span class="research-line-value">${linksHtml}</span></div>` : "");
+    }
+  }
+
+  const sal = data.salary || {};
+  if (elements.jdSalaryCard && (sal.low || sal.mid || sal.high)) {
+    elements.jdSalaryCard.hidden = false;
+    const currency = (sal.currency || "").trim().toUpperCase();
+    if (elements.jdSalaryBadges && sal.experience_level) {
+      elements.jdSalaryBadges.innerHTML = `<span class="chip">${sal.experience_level}</span>`;
+    }
+    if (elements.jdSalaryRange) {
+      // INR: abbreviate to lakhs (L) or crores (Cr). Others: use locale formatting.
+      const fmt = (n) => {
+        if (!n) return "—";
+        if (currency === "INR") {
+          if (n >= 10000000) return `${(n / 10000000).toFixed(2)} Cr`;
+          if (n >= 100000)   return `${(n / 100000).toFixed(1)} L`;
+          return n.toLocaleString("en-IN");
+        }
+        // For USD/GBP/EUR/AED/SGD etc. use thousands abbreviation when large
+        if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+        if (n >= 1000)    return `${(n / 1000).toFixed(0)}k`;
+        return n.toLocaleString();
+      };
+      const sym = { INR: "₹", USD: "$", GBP: "£", EUR: "€", AED: "AED", SGD: "S$", AUD: "A$", CAD: "C$" }[currency] || currency;
+      elements.jdSalaryRange.innerHTML = `
+        <div class="salary-figure"><div class="salary-figure-label">Low</div><div class="salary-figure-value">${sym}${fmt(sal.low)}</div></div>
+        <div class="salary-separator">–</div>
+        <div class="salary-figure"><div class="salary-figure-label">Mid</div><div class="salary-figure-value">${sym}${fmt(sal.mid)}</div></div>
+        <div class="salary-separator">–</div>
+        <div class="salary-figure"><div class="salary-figure-label">High</div><div class="salary-figure-value">${sym}${fmt(sal.high)}</div></div>
+      `;
+    }
+    if (elements.jdSalaryDetails && sal.notes) {
+      elements.jdSalaryDetails.innerHTML = `<div class="research-line"><span class="research-line-value">${sal.notes}</span></div>`;
+    }
   }
 }
 
@@ -2740,9 +2979,15 @@ function bindJobPage() {
   if (elements.jdInput) {
     elements.jdInput.value = state.jdText;
     elements.jdInput.addEventListener("input", analyzeJobDescription);
+    elements.jdInput.addEventListener("paste", () => {
+      // Let the paste event populate the textarea first, then process
+      setTimeout(autoProcessJD, 150);
+    });
   }
   elements.analyzeJdButton?.addEventListener("click", analyzeJobDescription);
   elements.jdUploadButton?.addEventListener("click", uploadJobDescriptionFile);
+  elements.jdExtractCompanyButton?.addEventListener("click", () => extractCompanyFromJD({ autoResearch: true }));
+  elements.jdResearchButton?.addEventListener("click", researchCompanyAndJob);
   if (elements.jdFileInput && elements.jdFileLabel) {
     elements.jdFileInput.addEventListener("change", () => {
       const file = elements.jdFileInput.files?.[0];

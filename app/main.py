@@ -68,6 +68,7 @@ from app.services.claim_extractor import extract_claims_for_document, fetch_chun
 from app.services.claim_utils import assess_claim_evidence, extract_claim_entities
 from app.services.documents import cleanup_document_storage, delete_document_evidence, ingest_uploaded_document
 from app.services.embeddings import embedding_available
+from app.services.company_research import extract_company_from_jd, research_company_and_job
 from app.services.job_descriptions import parse_uploaded_job_description
 from app.services.parser_backends import (
     compare_resume_parser_backends,
@@ -708,6 +709,66 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             filename=filename,
             text=text,
             parse_metadata=parse_metadata,
+        )
+
+    @app.post("/job-description/extract-company")
+    async def extract_company_name_from_jd(
+        payload: dict,
+        current_user: User = Depends(get_current_user),
+        app_settings: Settings = Depends(get_app_settings),
+    ) -> dict:
+        del current_user
+        jd_text = (payload.get("jd_text") or "").strip()
+        if not jd_text:
+            raise HTTPException(status_code=400, detail="jd_text is required.")
+        if not app_settings.openai_api_key:
+            raise HTTPException(status_code=503, detail="OpenAI API key not configured.")
+        return extract_company_from_jd(
+            jd_text=jd_text,
+            api_key=app_settings.openai_api_key,
+            model=app_settings.openai_model,
+        )
+
+    @app.post("/job-description/research")
+    async def research_job_company(
+        payload: dict,
+        profile_id: str | None = None,
+        current_user: User = Depends(get_current_user),
+        app_settings: Settings = Depends(get_app_settings),
+        session: Session = Depends(get_session_async),
+    ) -> dict:
+        company_name = (payload.get("company_name") or "").strip()
+        job_title = (payload.get("job_title") or "").strip()
+        jd_text = (payload.get("jd_text") or "").strip()
+
+        if not company_name:
+            raise HTTPException(status_code=400, detail="company_name is required.")
+        if not app_settings.openai_api_key:
+            raise HTTPException(status_code=503, detail="OpenAI API key not configured.")
+
+        # Build a short profile summary for salary context
+        profile_summary = ""
+        if profile_id:
+            try:
+                profile = resolve_profile(session, profile_id, current_user.id)
+                auto = (profile.profile_data or {}).get("auto") or {}
+                identity = auto.get("identity") or {}
+                work = auto.get("work_experience") or []
+                skills = auto.get("skills") or []
+                years_exp = len(work)
+                headline = identity.get("headline") or identity.get("current_position") or ""
+                skill_sample = ", ".join(str(s) for s in skills[:8])
+                profile_summary = f"{headline}; {years_exp} roles; skills: {skill_sample}"
+            except Exception:
+                pass
+
+        return research_company_and_job(
+            company_name=company_name,
+            job_title=job_title,
+            jd_text=jd_text,
+            profile_summary=profile_summary,
+            api_key=app_settings.openai_api_key,
+            fallback_model=app_settings.openai_model,
         )
 
     @app.get("/resume-parsers", response_model=list[ResumeParserBackendRead])

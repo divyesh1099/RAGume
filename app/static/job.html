@@ -74,8 +74,17 @@
               </div>
             </div>
             <div class="form-stack">
-              <textarea id="jd-input" rows="16"
+              <textarea id="jd-input" rows="14"
                 placeholder="Paste the job description here. It is matched against your current profile."></textarea>
+
+              <div class="company-input-row">
+                <div class="company-input-wrap">
+                  <label class="field-label" for="jd-company-input">Company name</label>
+                  <input id="jd-company-input" type="text" class="text-input"
+                    placeholder="Auto-extracted on paste — override manually" autocomplete="off">
+                </div>
+              </div>
+
               <div class="inline-row wrap">
                 <label class="file-trigger" for="jd-file-input">
                   <input id="jd-file-input" type="file"
@@ -83,9 +92,11 @@
                   <span id="jd-file-label">Choose a JD file</span>
                 </label>
                 <button class="secondary-button" type="button" id="jd-upload-button">Upload file</button>
-                <button class="primary-button" type="button" id="analyze-jd-button">Analyze JD</button>
+                <button class="secondary-button redo-button" type="button" id="analyze-jd-button">↺ Re-analyze</button>
+                <button class="secondary-button redo-button" type="button" id="jd-extract-company-button">↺ Re-extract company</button>
+                <button class="secondary-button redo-button" type="button" id="jd-research-button">↺ Re-research</button>
               </div>
-              <p class="subtle" id="jd-source-meta">Paste directly or upload a file to extract text first.</p>
+              <p class="subtle" id="jd-source-meta">Paste or upload a JD — analysis, company extraction, and research run automatically.</p>
             </div>
           </article>
 
@@ -138,6 +149,56 @@
           </div>
           <div class="match-list" id="jd-matched-claims">
             <div class="empty-state">Profile entries that overlap with the JD will appear here.</div>
+          </div>
+        </article>
+
+        <article class="surface" id="jd-research-panel" hidden>
+          <div class="surface-header">
+            <div>
+              <span class="eyebrow">Live research</span>
+              <h2 id="jd-research-heading">Company &amp; Job Research</h2>
+            </div>
+            <span class="chip" id="jd-research-source-chip" hidden></span>
+          </div>
+          <p class="subtle" id="jd-research-status">Research results will appear here.</p>
+
+          <div class="research-grid" id="jd-research-grid">
+            <!-- Company card -->
+            <article class="research-card" id="jd-company-card" hidden>
+              <div class="research-card-header">
+                <span class="research-card-icon">🏢</span>
+                <div>
+                  <div class="research-card-title" id="jd-company-name-display">Company</div>
+                  <div class="research-card-badges" id="jd-company-badges"></div>
+                </div>
+              </div>
+              <div class="research-card-body" id="jd-company-details"></div>
+            </article>
+
+            <!-- Job verification card -->
+            <article class="research-card" id="jd-job-card" hidden>
+              <div class="research-card-header">
+                <span class="research-card-icon">📋</span>
+                <div>
+                  <div class="research-card-title">Job Listing Status</div>
+                  <div class="research-card-badges" id="jd-job-badges"></div>
+                </div>
+              </div>
+              <div class="research-card-body" id="jd-job-details"></div>
+            </article>
+
+            <!-- Salary card -->
+            <article class="research-card research-card-wide" id="jd-salary-card" hidden>
+              <div class="research-card-header">
+                <span class="research-card-icon">💰</span>
+                <div>
+                  <div class="research-card-title">Estimated Salary Range</div>
+                  <div class="research-card-badges" id="jd-salary-badges"></div>
+                </div>
+              </div>
+              <div class="salary-range-display" id="jd-salary-range"></div>
+              <div class="research-card-body" id="jd-salary-details"></div>
+            </article>
           </div>
         </article>
       </main>
