@@ -10,6 +10,7 @@ const state = {
   parserComparisons: {},
   managedProfileId: null,
   summary: null,
+  health: null,
   profileOverview: null,
   profileStudioReview: null,
   profileStudioPreview: null,
@@ -81,6 +82,7 @@ const elements = {
   metricApproved: document.querySelector("#metric-approved"),
   metricGraph: document.querySelector("#metric-graph"),
   engineSummary: document.querySelector("#engine-summary"),
+  runtimeHealthBadges: document.querySelector("#runtime-health-badges"),
 
   uploadForm: document.querySelector("#upload-form"),
   fileInput: document.querySelector("#file-input"),
@@ -666,8 +668,38 @@ function renderSummary() {
     const retrievalText = state.summary.embedding_retrieval_available
       ? ` Retrieval is enhanced with ${state.summary.openai_embedding_model}.`
       : " Retrieval currently uses lexical and structural matching only.";
-    elements.engineSummary.textContent = `${extractorText}${retrievalText}`;
+    const publicHost = state.health?.public_base_url
+      ? state.health.public_base_url.replace(/^https?:\/\//, "")
+      : "";
+    const publicText = publicHost ? ` Public demo host: ${publicHost}.` : "";
+    elements.engineSummary.textContent = `${extractorText}${retrievalText}${publicText}`;
   }
+}
+
+function renderRuntimeHealth() {
+  if (!elements.runtimeHealthBadges) {
+    return;
+  }
+  if (!state.health) {
+    elements.runtimeHealthBadges.innerHTML = '<span class="chip warning">Runtime status unavailable</span>';
+    return;
+  }
+
+  const ready = state.health.ready_status === "ready";
+  const secureCookie = Boolean(state.health.session_cookie_secure);
+  const publicHost = state.health.public_base_url
+    ? state.health.public_base_url.replace(/^https?:\/\//, "")
+    : null;
+  const embeddingsEnabled = Boolean(state.health.embedding_retrieval_enabled);
+  const parserBackend = state.health.parser_backend || "auto";
+
+  elements.runtimeHealthBadges.innerHTML = [
+    `<span class="chip ${ready ? "success" : "warning"}">${ready ? "System ready" : "Warmup checks pending"}</span>`,
+    `<span class="chip ${secureCookie ? "success" : "warning"}">${secureCookie ? "Secure session cookie" : "Local cookie mode"}</span>`,
+    `<span class="chip">${publicHost ? `Public: ${escapeHtml(publicHost)}` : "Public URL pending"}</span>`,
+    `<span class="chip">${escapeHtml(`Parser: ${parserBackend}`)}</span>`,
+    `<span class="chip ${embeddingsEnabled ? "success" : ""}">${embeddingsEnabled ? "Embeddings on" : "Lexical retrieval"}</span>`,
+  ].join("");
 }
 
 function benchmarkCategoryValue() {
@@ -3109,6 +3141,16 @@ async function loadSummary() {
   renderSummary();
 }
 
+async function loadRuntimeHealth() {
+  try {
+    state.health = await apiFetch("/health");
+  } catch {
+    state.health = null;
+  }
+  renderRuntimeHealth();
+  renderSummary();
+}
+
 async function loadDocuments() {
   state.documents = await apiFetch(withProfileQuery("/documents"));
   state.parserComparisons = Object.fromEntries(
@@ -3157,7 +3199,7 @@ async function loadWiki() {
 }
 
 async function refreshEvidencePage() {
-  await Promise.all([loadResumeParsers(), loadSummary(), loadDocuments(), loadProfileOverview()]);
+  await Promise.all([loadResumeParsers(), loadRuntimeHealth(), loadSummary(), loadDocuments(), loadProfileOverview()]);
   renderSelectedDocumentSummary();
 }
 

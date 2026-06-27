@@ -22,6 +22,19 @@ def _sanitize_filename(filename: str) -> str:
     return cleaned or "document"
 
 
+def _ensure_upload_size_within_limit(path: Path, *, max_bytes: int, label: str) -> None:
+    size_bytes = path.stat().st_size
+    if size_bytes <= max_bytes:
+        return
+    size_mb = size_bytes / (1024 * 1024)
+    limit_mb = max_bytes / (1024 * 1024)
+    path.unlink(missing_ok=True)
+    raise HTTPException(
+        status_code=413,
+        detail=f"{label} is {size_mb:.1f} MB, which exceeds the {limit_mb:.0f} MB upload limit.",
+    )
+
+
 def ingest_uploaded_document(
     session: Session,
     upload_file: UploadFile,
@@ -42,6 +55,12 @@ def ingest_uploaded_document(
 
     with destination.open("wb") as handle:
         shutil.copyfileobj(upload_file.file, handle)
+
+    _ensure_upload_size_within_limit(
+        destination,
+        max_bytes=settings.max_upload_size_bytes,
+        label=safe_filename,
+    )
 
     try:
         extracted_text, parse_metadata = extract_text_from_path(destination)

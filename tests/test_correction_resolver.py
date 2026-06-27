@@ -2,6 +2,7 @@ import json
 from types import SimpleNamespace
 
 from app.config import Settings
+from app.models import Profile
 from app.services import correction_resolver
 from app.services import embeddings
 from app.services.correction_resolver import ArbiterChoice, ResolverCandidate
@@ -174,6 +175,8 @@ def test_local_correction_embedding_cache_backend(tmp_path, monkeypatch) -> None
     init_engine(settings.database_url)
     init_db()
     with session_scope() as session:
+        session.add(Profile(id="profile-1", name="Primary Profile"))
+        session.flush()
         first_vectors, first_stats = embeddings.ensure_correction_embeddings(
             session,
             profile_id="profile-1",

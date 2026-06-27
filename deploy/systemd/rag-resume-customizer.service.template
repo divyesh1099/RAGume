@@ -1,0 +1,18 @@
+[Unit]
+Description=RAGume Resume Customizer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__PROJECT_DIR__
+Environment=APP_ENV=production
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=__PROJECT_DIR__/.env
+ExecStart=__PROJECT_DIR__/scripts/run_prod.sh
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target

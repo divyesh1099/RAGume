@@ -1,10 +1,15 @@
 import datetime as dt
+import logging
 import shutil
+import time
+import uuid
 from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -109,6 +114,12 @@ from app.services.wiki import build_profile_wiki
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+LOGGER = logging.getLogger("ragume.app")
+UPLOAD_LIMITED_PATHS = {
+    "/documents/upload",
+    "/documents/upload-batch",
+    "/job-description/parse",
+}
 
 
 async def get_app_settings(request: Request) -> Settings:
@@ -117,6 +128,93 @@ async def get_app_settings(request: Request) -> Settings:
 
 def llm_available(settings: Settings) -> bool:
     return settings.enable_llm_extractor and bool(settings.openai_api_key)
+
+
+def configure_logging(settings: Settings) -> None:
+    level = getattr(logging, settings.log_level.upper(), logging.INFO)
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        )
+    else:
+        root_logger.setLevel(level)
+
+
+def ensure_runtime_directories(settings: Settings) -> None:
+    for path_value in (
+        settings.uploads_dir,
+        settings.benchmark_reports_dir,
+        settings.resume_ner_cache_dir,
+        settings.correction_local_embedding_cache_dir,
+    ):
+        if not path_value:
+            continue
+        Path(path_value).mkdir(parents=True, exist_ok=True)
+
+
+def runtime_status_payload(settings: Settings) -> dict[str, Any]:
+    return {
+        "app_name": settings.app_name,
+        "app_version": settings.app_version,
+        "environment": settings.app_env,
+        "timestamp": dt.datetime.now(dt.UTC).isoformat(),
+        "public_base_url": settings.public_base_url,
+        "session_cookie_secure": settings.session_cookie_secure_effective,
+        "session_cookie_samesite": settings.session_cookie_samesite,
+        "allowed_hosts": settings.allowed_host_list,
+        "max_upload_size_mb": settings.max_upload_size_mb,
+        "parser_backend": resolve_resume_parser_backend(settings),
+        "llm_extractor_enabled": llm_available(settings),
+        "openai_model": settings.openai_model if llm_available(settings) else None,
+        "embedding_retrieval_enabled": embedding_available(settings),
+        "openai_embedding_model": settings.openai_embedding_model if embedding_available(settings) else None,
+    }
+
+
+def readiness_payload(settings: Settings) -> dict[str, Any]:
+    checks: dict[str, str] = {}
+    status = "ready"
+
+    try:
+        with session_scope() as session:
+            session.execute(select(1))
+        checks["database"] = "ok"
+    except Exception as exc:  # pragma: no cover - defensive guard for runtime health only
+        checks["database"] = f"error:{exc.__class__.__name__}"
+        status = "degraded"
+
+    for label, path_value in (
+        ("uploads_dir", settings.uploads_dir),
+        ("benchmark_reports_dir", settings.benchmark_reports_dir),
+    ):
+        try:
+            Path(path_value).mkdir(parents=True, exist_ok=True)
+            checks[label] = "ok"
+        except OSError as exc:
+            checks[label] = f"error:{exc.__class__.__name__}"
+            status = "degraded"
+
+    return {
+        **runtime_status_payload(settings),
+        "status": status,
+        "checks": checks,
+    }
+
+
+def request_exceeds_upload_limit(request: Request, settings: Settings) -> bool:
+    if request.method.upper() not in {"POST", "PUT", "PATCH"}:
+        return False
+    if request.url.path not in UPLOAD_LIMITED_PATHS:
+        return False
+    content_length = request.headers.get("content-length")
+    if not content_length:
+        return False
+    try:
+        return int(content_length) > settings.max_upload_size_bytes
+    except ValueError:
+        return False
 
 
 async def get_current_user(
@@ -404,24 +502,34 @@ def refresh_document_profile(
     return auto_sections, profile_warnings
 
 
-def set_session_cookie(response: Response, token: str) -> None:
+def set_session_cookie(response: Response, token: str, settings: Settings) -> None:
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite=settings.session_cookie_samesite,
+        secure=settings.session_cookie_secure_effective,
         max_age=60 * 60 * 24 * 30,
         path="/",
+        domain=settings.session_cookie_domain,
     )
 
 
-def clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+def clear_session_cookie(response: Response, settings: Settings) -> None:
+    response.delete_cookie(
+        SESSION_COOKIE_NAME,
+        path="/",
+        domain=settings.session_cookie_domain,
+        secure=settings.session_cookie_secure_effective,
+        httponly=True,
+        samesite=settings.session_cookie_samesite,
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
+    configure_logging(resolved_settings)
+    ensure_runtime_directories(resolved_settings)
     init_engine(resolved_settings.database_url)
     init_db()
     with session_scope() as session:
@@ -430,11 +538,72 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title=resolved_settings.app_name,
-        version="0.1.0",
+        version=resolved_settings.app_version,
         description="Evidence-backed profile claim engine for resume RAG.",
     )
     app.state.settings = resolved_settings
+    app.add_middleware(GZipMiddleware, minimum_size=resolved_settings.gzip_minimum_size)
+    if resolved_settings.allowed_host_list != ["*"]:
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=resolved_settings.allowed_host_list)
     app.mount("/assets", StaticFiles(directory=STATIC_DIR), name="assets")
+
+    @app.middleware("http")
+    async def request_context_middleware(request: Request, call_next):
+        request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+        request.state.request_id = request_id
+        start = time.perf_counter()
+
+        if request_exceeds_upload_limit(request, resolved_settings):
+            LOGGER.warning(
+                "request_rejected request_id=%s method=%s path=%s reason=content_length_exceeded",
+                request_id,
+                request.method,
+                request.url.path,
+            )
+            response = JSONResponse(
+                status_code=413,
+                content={
+                    "detail": (
+                        f"Request body exceeds the {resolved_settings.max_upload_size_mb} MB upload limit."
+                    ),
+                    "request_id": request_id,
+                },
+            )
+            response.headers["X-Request-ID"] = request_id
+            return response
+
+        try:
+            response = await call_next(request)
+        except Exception:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            LOGGER.exception(
+                "request_failed request_id=%s method=%s path=%s duration_ms=%.2f",
+                request_id,
+                request.method,
+                request.url.path,
+                elapsed_ms,
+            )
+            raise
+
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        response.headers["X-Request-ID"] = request_id
+        LOGGER.info(
+            "request_complete request_id=%s method=%s path=%s status_code=%s duration_ms=%.2f",
+            request_id,
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+        )
+        return response
+
+    LOGGER.info(
+        "startup_complete environment=%s version=%s public_base_url=%s secure_cookies=%s",
+        resolved_settings.app_env,
+        resolved_settings.app_version,
+        resolved_settings.public_base_url or "local-only",
+        resolved_settings.session_cookie_secure_effective,
+    )
 
     @app.get("/", include_in_schema=False)
     async def index() -> FileResponse:
@@ -469,15 +638,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return FileResponse(STATIC_DIR / "profiles.html")
 
     @app.get("/health")
-    async def health() -> dict:
+    async def health() -> dict[str, Any]:
+        return {
+            **runtime_status_payload(resolved_settings),
+            "status": "ok",
+            "ready_status": readiness_payload(resolved_settings)["status"],
+        }
+
+    @app.get("/health/live")
+    async def health_live() -> dict[str, Any]:
         return {
             "status": "ok",
             "timestamp": dt.datetime.now(dt.UTC).isoformat(),
-            "llm_extractor_enabled": llm_available(resolved_settings),
-            "openai_model": resolved_settings.openai_model if llm_available(resolved_settings) else None,
-            "embedding_retrieval_enabled": embedding_available(resolved_settings),
-            "openai_embedding_model": resolved_settings.openai_embedding_model if embedding_available(resolved_settings) else None,
+            "app_version": resolved_settings.app_version,
+            "environment": resolved_settings.app_env,
         }
+
+    @app.get("/health/ready")
+    async def health_ready() -> dict[str, Any]:
+        return readiness_payload(resolved_settings)
 
     @app.post("/auth/register", response_model=AuthSessionRead)
     async def register(
@@ -487,7 +666,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> AuthSessionRead:
         user = create_user(session, payload.full_name, payload.email, payload.password)
         _, raw_token = create_user_session(session, user)
-        set_session_cookie(response, raw_token)
+        set_session_cookie(response, raw_token, resolved_settings)
         return AuthSessionRead(user=serialize_user(user))
 
     @app.post("/auth/login", response_model=AuthSessionRead)
@@ -498,7 +677,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> AuthSessionRead:
         user = authenticate_user(session, payload.email, payload.password)
         _, raw_token = create_user_session(session, user)
-        set_session_cookie(response, raw_token)
+        set_session_cookie(response, raw_token, resolved_settings)
         return AuthSessionRead(user=serialize_user(user))
 
     @app.post("/auth/logout")
@@ -508,7 +687,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session: Session = Depends(get_session_async),
     ) -> dict[str, str]:
         revoke_session(session, request.cookies.get(SESSION_COOKIE_NAME))
-        clear_session_cookie(response)
+        clear_session_cookie(response, resolved_settings)
         return {"status": "logged_out"}
 
     @app.get("/auth/session", response_model=AuthSessionRead)
@@ -519,9 +698,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def parse_job_description(
         file: UploadFile,
         current_user: User = Depends(get_current_user),
+        app_settings: Settings = Depends(get_app_settings),
     ) -> JobDescriptionParseResponse:
         del current_user
-        text, parse_metadata, filename = parse_uploaded_job_description(file)
+        text, parse_metadata, filename = parse_uploaded_job_description(file, app_settings)
         return JobDescriptionParseResponse(
             filename=filename,
             text=text,

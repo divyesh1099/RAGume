@@ -1,9 +1,10 @@
 from collections.abc import Generator
 from contextlib import contextmanager
 import datetime as dt
+from pathlib import Path
 import uuid
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_settings
@@ -17,14 +18,55 @@ _engine = None
 _session_factory: sessionmaker[Session] | None = None
 
 
+def _sqlite_database_path(database_url: str) -> Path | None:
+    prefixes = ("sqlite:///", "sqlite+pysqlite:///")
+    for prefix in prefixes:
+        if not database_url.startswith(prefix):
+            continue
+        raw_path = database_url.removeprefix(prefix)
+        if not raw_path or raw_path in {":memory:", "/:memory:"}:
+            return None
+        if raw_path.startswith("file:"):
+            return None
+        return Path(raw_path).expanduser()
+    return None
+
+
+def _ensure_database_parent(database_url: str) -> None:
+    database_path = _sqlite_database_path(database_url)
+    if database_path is None:
+        return
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _configure_sqlite_connection(engine) -> None:
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragmas(dbapi_connection, connection_record) -> None:  # noqa: ARG001
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+        finally:
+            cursor.close()
+
+
 def init_engine(database_url: str | None = None) -> None:
     global _engine, _session_factory
 
     if database_url is None:
         database_url = get_settings().database_url
 
-    connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-    _engine = create_engine(database_url, future=True, connect_args=connect_args)
+    _ensure_database_parent(database_url)
+    connect_args = {"check_same_thread": False, "timeout": 30} if database_url.startswith("sqlite") else {}
+    _engine = create_engine(
+        database_url,
+        future=True,
+        connect_args=connect_args,
+        pool_pre_ping=True,
+    )
+    if database_url.startswith("sqlite"):
+        _configure_sqlite_connection(_engine)
     _session_factory = sessionmaker(bind=_engine, autoflush=False, autocommit=False, future=True)
 
 

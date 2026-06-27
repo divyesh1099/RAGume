@@ -47,10 +47,16 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-2. Start the API:
+2. Start the API in local dev mode:
 
 ```bash
 uvicorn app.main:create_app --factory --reload
+```
+
+Production-style local run:
+
+```bash
+./scripts/run_prod.sh
 ```
 
 3. Open the app:
@@ -73,6 +79,17 @@ Pages:
 All settings are optional for local development.
 
 ```bash
+APP_ENV=development
+PUBLIC_BASE_URL=
+SERVER_HOST=127.0.0.1
+SERVER_PORT=8000
+LOG_LEVEL=info
+ALLOWED_HOSTS=127.0.0.1,localhost,testserver
+SESSION_COOKIE_SECURE=
+SESSION_COOKIE_DOMAIN=
+SESSION_COOKIE_SAMESITE=lax
+MAX_UPLOAD_SIZE_MB=25
+GZIP_MINIMUM_SIZE=512
 DATABASE_URL=sqlite:///./data/app.db
 UPLOADS_DIR=./data/uploads
 BENCHMARK_DATASET_DIR=
@@ -99,6 +116,75 @@ If resume cleanup is weaker than expected, first check `ENABLE_RESUME_GPT_FORMAT
 If the home screen shows `Heuristic mode`, the most common cause is `ENABLE_LLM_EXTRACTOR=false` in `.env`.
 If document cards show embeddings as disabled or failed, check `ENABLE_EMBEDDING_RETRIEVAL` and your `OPENAI_API_KEY`.
 If you want parser-only resume extraction without API refinement, leave `ENABLE_RESUME_GPT_FORMATTER=false`.
+
+## Production demo setup
+
+If you want the project to feel like a real hosted product during the interview, use this path:
+
+1. Prepare `.env` for a public HTTPS domain:
+
+```bash
+APP_ENV=production
+PUBLIC_BASE_URL=https://resume.yourdomain.com
+ALLOWED_HOSTS=127.0.0.1,localhost,resume.yourdomain.com
+SESSION_COOKIE_SECURE=true
+SERVER_HOST=127.0.0.1
+SERVER_PORT=8000
+LOG_LEVEL=info
+```
+
+If you test over plain `http://127.0.0.1` before the tunnel is live, temporarily keep `APP_ENV=development` or set `SESSION_COOKIE_SECURE=false` so browser login cookies still work locally.
+
+2. Start the app with the production runner:
+
+```bash
+./scripts/run_prod.sh
+```
+
+3. Check runtime status:
+
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/health/live
+curl http://127.0.0.1:8000/health/ready
+```
+
+4. Install the app as a user service so it comes back after restart:
+
+```bash
+./scripts/install_user_service.sh
+systemctl --user status rag-resume-customizer.service
+```
+
+If you want the service to stay up after a full reboot before login, enable lingering once:
+
+```bash
+sudo loginctl enable-linger "$USER"
+```
+
+5. Wire Cloudflare Tunnel to the local app:
+
+- Copy `deploy/cloudflared/ragume.example.yml` to `deploy/cloudflared/ragume.yml`
+- Fill in your tunnel ID, credentials file path, and interview domain
+- Point the ingress service at `http://127.0.0.1:8000`
+- If `deploy/cloudflared/ragume.yml` exists, `./scripts/install_user_service.sh` also installs `ragume-cloudflared.service`
+
+You can validate the setup with:
+
+```bash
+cloudflared tunnel --config ./deploy/cloudflared/ragume.yml ingress validate
+cloudflared tunnel route dns <TUNNEL_ID_OR_NAME> resume.yourdomain.com
+cloudflared tunnel --config ./deploy/cloudflared/ragume.yml run <TUNNEL_ID_OR_NAME>
+```
+
+The production pass in this repo adds:
+
+- Secure cookie support for HTTPS domains
+- Host allowlisting for public deployments
+- GZip and request-ID middleware
+- Health, liveness, and readiness endpoints
+- Upload size limits and safer SQLite startup defaults
+- `systemd` and Cloudflare Tunnel templates for startup automation
 
 ## Core API flow
 

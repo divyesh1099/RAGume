@@ -1,0 +1,16 @@
+[Unit]
+Description=Cloudflare Tunnel for RAGume
+After=network-online.target rag-resume-customizer.service
+Wants=network-online.target
+Requires=rag-resume-customizer.service
+
+[Service]
+Type=simple
+WorkingDirectory=__PROJECT_DIR__
+ExecStart=/usr/bin/env cloudflared tunnel --config __PROJECT_DIR__/deploy/cloudflared/ragume.yml run
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target
