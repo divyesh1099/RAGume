@@ -69,6 +69,31 @@ class Settings(BaseSettings):
     hybrid_lexical_weight: float = Field(default=0.5, ge=0.0, le=1.0)
     hybrid_semantic_weight: float = Field(default=0.35, ge=0.0, le=1.0)
     hybrid_structural_weight: float = Field(default=0.15, ge=0.0, le=1.0)
+    # NITRAG-style retrieval settings
+    retrieval_top_k_fetch: int = Field(default=20, ge=5, le=100)
+    retrieval_top_k_rerank: int = Field(default=8, ge=1, le=50)
+    rrf_k: float = Field(default=60.0, ge=1.0, le=500.0)
+    retrieval_rrf_alpha: float = Field(default=0.5, ge=0.0, le=1.0)
+    use_query_expansion: bool = True
+    retrieval_context_max_tokens: int = Field(default=3500, ge=500, le=16000)
+    reranker_keyword_weight: float = Field(default=0.6, ge=0.0, le=1.0)
+    reranker_proximity_weight: float = Field(default=0.4, ge=0.0, le=1.0)
+    # GLiNER zero-shot NER (ENABLE_GLINER_NER=true to activate, downloads ~180 MB)
+    enable_gliner_ner: bool = False
+    gliner_model_id: str = "urchade/gliner_small-v2.1"
+    gliner_cache_dir: str | None = "./data/model-cache"
+    gliner_threshold: float = Field(default=0.35, ge=0.0, le=1.0)
+    # Local sentence-transformer embeddings for chunk retrieval (no OpenAI key needed)
+    enable_local_embeddings: bool = False
+    local_embedding_model: str = "BAAI/bge-small-en-v1.5"
+    local_embedding_cache_dir: str | None = "./data/model-cache"
+    # Cross-encoder reranking (more accurate than keyword overlap, downloads ~80 MB)
+    enable_cross_encoder_reranker: bool = False
+    cross_encoder_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    # Sentence-level sliding-window chunking (finer granularity for semantic retrieval)
+    enable_sentence_chunking: bool = False
+    sentence_window_size: int = Field(default=3, ge=1, le=10)
+    sentence_window_stride: int = Field(default=2, ge=1, le=10)
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -2,6 +2,7 @@ import hashlib
 import math
 from functools import lru_cache
 
+import numpy as np
 from openai import OpenAI
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,6 +18,58 @@ except Exception:  # pragma: no cover - optional runtime dependency
 
 def embedding_available(settings: Settings) -> bool:
     return settings.enable_embedding_retrieval and bool(settings.openai_api_key)
+
+
+def local_embedding_available(settings: Settings) -> bool:
+    """True when local SentenceTransformer embeddings are enabled and usable."""
+    return (
+        getattr(settings, "enable_local_embeddings", False)
+        and SentenceTransformer is not None
+    )
+
+
+def any_embedding_available(settings: Settings) -> bool:
+    """True when at least one embedding backend (OpenAI or local) is usable."""
+    return embedding_available(settings) or local_embedding_available(settings)
+
+
+@lru_cache(maxsize=4)
+def _local_chunk_model(model_name: str, cache_dir: str | None) -> "SentenceTransformer":
+    if SentenceTransformer is None:
+        raise RuntimeError("sentence-transformers is not installed")
+    kwargs: dict = {"model_name_or_path": model_name}
+    if cache_dir:
+        kwargs["cache_folder"] = cache_dir
+    return SentenceTransformer(**kwargs)
+
+
+def _effective_chunk_model_name(settings: Settings) -> str:
+    """The model name that will actually be used for chunk embeddings."""
+    if embedding_available(settings):
+        return settings.openai_embedding_model
+    if local_embedding_available(settings):
+        return getattr(settings, "local_embedding_model", "BAAI/bge-small-en-v1.5")
+    return settings.openai_embedding_model
+
+
+def embed_texts_for_retrieval(settings: Settings, texts: list[str]) -> list[list[float]]:
+    """Embed texts for chunk retrieval.
+
+    Tries OpenAI first; falls back to the configured local SentenceTransformer
+    model when OpenAI is unavailable.  Returns an empty list when neither
+    backend is available.
+    """
+    if not texts:
+        return []
+    if embedding_available(settings):
+        return embed_texts(settings, texts)
+    if local_embedding_available(settings):
+        model_name: str = getattr(settings, "local_embedding_model", "BAAI/bge-small-en-v1.5")
+        cache_dir: str | None = getattr(settings, "local_embedding_cache_dir", "./data/model-cache")
+        model = _local_chunk_model(model_name, cache_dir)
+        vectors = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+        return [_coerce_float_vector(v) for v in vectors]
+    return []
 
 
 def _client(settings: Settings) -> OpenAI:
@@ -35,6 +88,39 @@ def embed_texts(settings: Settings, texts: list[str]) -> list[list[float]]:
         input=texts,
     )
     return [_coerce_float_vector(item.embedding) for item in response.data]
+
+
+def batch_cosine_similarity(
+    query_vector: list[float],
+    chunk_vectors: dict[str, list[float]],
+) -> dict[str, float]:
+    """Vectorised cosine similarity via numpy matrix multiply.
+
+    Ported from NITRAG's semantic_retrievers.py — replaces the Python loop
+    in the old retrieval.py that called cosine_similarity() per chunk.
+
+    Returns a dict mapping chunk_id → cosine similarity ∈ [-1, 1].
+    Returns an empty dict when either input is empty or the query is a zero vector.
+    """
+    if not chunk_vectors or not query_vector:
+        return {}
+
+    chunk_ids = list(chunk_vectors.keys())
+    matrix = np.array([chunk_vectors[cid] for cid in chunk_ids], dtype=np.float32)
+    query = np.array(query_vector, dtype=np.float32)
+
+    query_norm = float(np.linalg.norm(query))
+    if query_norm < 1e-9:
+        return {cid: 0.0 for cid in chunk_ids}
+    query = query / query_norm
+
+    row_norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    row_norms = np.where(row_norms < 1e-9, 1.0, row_norms)
+    matrix = matrix / row_norms
+
+    # Inner product of L2-normalised vectors = cosine similarity
+    similarities: np.ndarray = matrix @ query
+    return {cid: float(sim) for cid, sim in zip(chunk_ids, similarities)}
 
 
 def correction_embedding_provider(settings: Settings) -> str:
@@ -90,9 +176,10 @@ def cosine_similarity(left: list[float], right: list[float]) -> float:
 
 
 def ensure_chunk_embeddings(session: Session, chunks: list[Chunk], settings: Settings) -> dict[str, ChunkEmbedding]:
-    if not chunks or not embedding_available(settings):
+    if not chunks or not any_embedding_available(settings):
         return {}
 
+    model_name = _effective_chunk_model_name(settings)
     chunk_ids = [chunk.id for chunk in chunks]
     existing_records = session.scalars(select(ChunkEmbedding).where(ChunkEmbedding.chunk_id.in_(chunk_ids))).all()
     existing_by_id = {record.chunk_id: record for record in existing_records}
@@ -100,24 +187,24 @@ def ensure_chunk_embeddings(session: Session, chunks: list[Chunk], settings: Set
     stale_or_missing_chunks = [
         chunk
         for chunk in chunks
-        if chunk.id not in existing_by_id or existing_by_id[chunk.id].model != settings.openai_embedding_model
+        if chunk.id not in existing_by_id or existing_by_id[chunk.id].model != model_name
     ]
 
     if stale_or_missing_chunks:
-        vectors = embed_texts(settings, [chunk.text for chunk in stale_or_missing_chunks])
+        vectors = embed_texts_for_retrieval(settings, [chunk.text for chunk in stale_or_missing_chunks])
         for chunk, vector in zip(stale_or_missing_chunks, vectors, strict=True):
             existing = existing_by_id.get(chunk.id)
             if existing is None:
                 existing = ChunkEmbedding(
                     chunk_id=chunk.id,
-                    model=settings.openai_embedding_model,
+                    model=model_name,
                     dimensions=len(vector),
                     vector=vector,
                 )
                 session.add(existing)
                 existing_by_id[chunk.id] = existing
             else:
-                existing.model = settings.openai_embedding_model
+                existing.model = model_name
                 existing.dimensions = len(vector)
                 existing.vector = vector
         session.flush()

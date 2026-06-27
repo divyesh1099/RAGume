@@ -3,37 +3,41 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Resume Workspace · Register</title>
-    <meta name="description" content="Create an account for Resume Workspace.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+    <title>RAGume · Create Account</title>
+    <meta name="description" content="Create a new RAGume account.">
     <link rel="stylesheet" href="/assets/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   </head>
   <body data-page="register">
     <div class="auth-shell">
-      <div class="auth-brand">
-        <span class="brand-mark">RR</span>
-        <div>
-          <strong>Resume Workspace</strong>
-          <span>Profile workspace</span>
-        </div>
-      </div>
-
       <main class="auth-card">
-        <span class="eyebrow">Get started</span>
-        <h1>Create account</h1>
-        <p class="subtle">Create an account to keep multiple profiles, switch between them, and build job-specific outputs over time.</p>
+        <div class="auth-brand">
+          <span class="auth-brand-mark">RG</span>
+          <span class="auth-brand-name">RAGume</span>
+        </div>
+
+        <div class="auth-head">
+          <h1>Create account</h1>
+          <p>One profile. Every version of your career.</p>
+        </div>
+
         <form class="form-stack" id="register-form">
-          <label class="field-label" for="register-name">Full name</label>
-          <input id="register-name" type="text" autocomplete="name" required>
-          <label class="field-label" for="register-email">Email</label>
-          <input id="register-email" type="email" autocomplete="email" required>
-          <label class="field-label" for="register-password">Password</label>
-          <input id="register-password" type="password" autocomplete="new-password" required minlength="8">
+          <div>
+            <label class="field-label" for="register-name">Full name</label>
+            <input id="register-name" type="text" autocomplete="name" placeholder="Your name" required>
+          </div>
+          <div>
+            <label class="field-label" for="register-email">Email</label>
+            <input id="register-email" type="email" autocomplete="email" placeholder="you@example.com" required>
+          </div>
+          <div>
+            <label class="field-label" for="register-password">Password</label>
+            <input id="register-password" type="password" autocomplete="new-password" placeholder="Choose a password" required minlength="8">
+          </div>
           <button class="primary-button auth-button" type="submit" id="register-button">Create Account</button>
         </form>
-        <p class="auth-meta">Already have an account? <a href="/login">Log in</a></p>
+
+        <p class="auth-links">Already have an account? <a href="/login">Log in</a></p>
       </main>
     </div>
 

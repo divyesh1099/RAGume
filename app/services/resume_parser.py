@@ -34,34 +34,98 @@ DATE_RANGE_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 DEGREE_PATTERN = re.compile(
-    r"\b(?:b\.?tech|m\.?tech|bachelor(?:'s)?|master(?:'s)?|ph\.?d|diploma|mba|bca|mca|bs|ms|be|me)\b",
+    r"\b(?:"
+    r"b\.?\s?tech|m\.?\s?tech|"
+    r"b\.?\s?sc\.?|m\.?\s?sc\.?|b\.?\s?s\.?|m\.?\s?s\.?|"
+    r"b\.?\s?e\.?|m\.?\s?e\.?|b\.?\s?a\.?|m\.?\s?a\.?|"
+    r"b\.?\s?com|m\.?\s?com|"
+    r"b\.?\s?c\.?\s?a\.?|m\.?\s?c\.?\s?a\.?|bca|mca|"
+    r"bachelor(?:'?s)?(?:\s+of)?|master(?:'?s)?(?:\s+of)?|"
+    r"ph\.?\s?d\.?|d\.?\s?phil|"
+    r"mba|m\.?\s?b\.?\s?a\.?|"
+    r"associate(?:'?s)?|diploma|hnd|hnc|"
+    r"doctorate|postgraduate|undergraduate"
+    r")\b",
     flags=re.IGNORECASE,
 )
 INSTITUTION_PATTERN = re.compile(
-    r"\b(?:university|college|institute|school|academy|polytechnic)\b",
+    r"\b(?:"
+    r"university|college|institute|school|academy|polytechnic|"
+    r"iit|nit|bits|iiit|iim|iise|iisc|"              # Indian premier institutions
+    r"mit|caltech|stanford|harvard|oxford|cambridge|"  # globally-known abbreviations
+    r"hochschule|fachhochschule|universidad|università|université"  # non-English
+    r")\b",
     flags=re.IGNORECASE,
 )
 ROLE_WORD_PATTERN = re.compile(
-    r"\b(?:engineer|developer|scientist|analyst|intern|consultant|researcher|manager|lead|architect|specialist|designer|freelancer|freelancing)\b",
+    r"\b(?:"
+    r"engineer|developer|scientist|analyst|intern|consultant|researcher|"
+    r"manager|lead|architect|specialist|designer|freelancer|freelancing|"
+    r"principal|senior|junior|staff|director|officer|vp|"
+    r"administrator|technician|executive|president|"
+    r"head|chief|associate|assistant|coordinator|"
+    r"programmer|founder|co-founder|"
+    r"expert|strategist|advisor|mentor|trainer|"
+    r"devops|sre|mlops|fullstack|frontend|backend"
+    r")\b",
     flags=re.IGNORECASE,
 )
 BULLET_LINE_PATTERN = re.compile(r"^(?:[•\-*]\s*)+")
 SECTION_ALIASES = {
-    "summary": {"summary", "professional summary", "about", "profile", "overview"},
-    "skills": {"skills", "technical skills", "technologies", "core skills", "stack"},
-    "work_experience": {
-        "work experience",
-        "experience",
-        "professional experience",
-        "employment",
-        "career history",
+    "summary": {
+        "summary", "professional summary", "about", "profile", "overview",
+        "objective", "career objective", "professional profile", "executive summary",
+        "introduction", "bio", "about me", "who i am", "professional overview",
+        "career summary", "personal statement", "professional statement",
     },
-    "education": {"education", "academics", "academic background"},
-    "projects": {"projects", "selected projects", "portfolio"},
-    "certifications": {"certifications", "certification", "licenses"},
-    "achievements": {"achievements", "awards", "honors"},
-    "leadership": {"leadership", "open source", "open source & leadership", "community leadership"},
-    "languages": {"languages"},
+    "skills": {
+        "skills", "technical skills", "technologies", "core skills", "stack",
+        "tech stack", "tools technologies", "tools and technologies",
+        "programming languages", "languages and technologies", "expertise",
+        "competencies", "core competencies", "key skills", "proficiencies",
+        "technical proficiencies", "skills tools", "tools frameworks",
+        "frameworks and tools", "software", "technical expertise",
+        "languages frameworks", "skills expertise", "tools and frameworks",
+        "areas of expertise", "key technologies", "technical stack",
+    },
+    "work_experience": {
+        "work experience", "experience", "professional experience", "employment",
+        "career history", "employment history", "work history", "positions held",
+        "professional background", "relevant experience", "industry experience",
+        "internship experience", "internships", "work", "job history",
+        "career", "professional history", "work and experience",
+    },
+    "education": {
+        "education", "academics", "academic background", "academic history",
+        "educational background", "qualifications", "academic qualifications",
+        "degrees", "schooling", "training and education", "education training",
+        "academic credentials",
+    },
+    "projects": {
+        "projects", "selected projects", "portfolio", "personal projects",
+        "open source", "open source projects", "side projects", "notable projects",
+        "academic projects", "key projects", "recent projects", "technical projects",
+        "project work", "project experience", "featured projects",
+    },
+    "certifications": {
+        "certifications", "certification", "licenses", "certificates",
+        "professional certifications", "credentials", "licenses certifications",
+        "training certifications", "courses certifications", "courses",
+        "online courses", "professional development",
+    },
+    "achievements": {
+        "achievements", "awards", "honors", "accomplishments",
+        "recognition", "awards honors", "achievements awards",
+        "scholarships", "publications", "research publications", "honors awards",
+        "accolades", "distinctions",
+    },
+    "leadership": {
+        "leadership", "open source", "open source leadership",
+        "community leadership", "volunteering", "volunteer experience",
+        "extracurricular", "activities", "leadership activities",
+        "community", "community involvement",
+    },
+    "languages": {"languages", "spoken languages", "language skills", "human languages"},
 }
 GENERIC_HEADINGS = set().union(*SECTION_ALIASES.values())
 ROLE_SEPARATORS = (" | ", " at ", " @ ", " in ")
@@ -268,15 +332,25 @@ def _unique_links(links: Iterable[dict[str, str]]) -> list[dict[str, str]]:
 
 
 def _normalize_heading(text: str) -> str:
-    return re.sub(r"[^a-zA-Z ]+", " ", text).strip().lower()
+    # Strip non-alpha chars (including &, +, |, /, –) then collapse spaces
+    return re.sub(r"\s+", " ", re.sub(r"[^a-zA-Z ]+", " ", text)).strip().lower()
 
 
 def _canonical_section_heading(text: str) -> str | None:
     normalized = _normalize_heading(text)
+    # First pass: exact matches — checked across all sections before any substring logic.
+    # This ensures "open source leadership" (exact in leadership) beats
+    # "open source" (substring in projects).
     for canonical, aliases in SECTION_ALIASES.items():
         if normalized in aliases:
             return canonical
+    # Second pass: substring matches for multi-word aliases only.
+    # Single-word aliases must match exactly to avoid false positives like
+    # "software" matching "Software Developer".
+    for canonical, aliases in SECTION_ALIASES.items():
         for alias in aliases:
+            if len(alias.split()) < 2:
+                continue
             if alias in normalized and len(normalized.split()) <= max(4, len(alias.split()) + 2):
                 return canonical
     return None
@@ -286,13 +360,17 @@ def _looks_like_heading(text: str, *, body_font_size: float, max_font_size: floa
     cleaned = _clean_text(text)
     if not cleaned or len(cleaned) > 90:
         return False
+    # Known canonical heading — always accept
     if _canonical_section_heading(cleaned):
         return True
-    uppercase_ratio = (
-        sum(1 for character in cleaned if character.isupper()) / max(1, sum(1 for character in cleaned if character.isalpha()))
-        if any(character.isalpha() for character in cleaned)
-        else 0.0
-    )
+    alpha_chars = [c for c in cleaned if c.isalpha()]
+    if not alpha_chars:
+        return False
+    uppercase_ratio = sum(1 for c in alpha_chars if c.isupper()) / len(alpha_chars)
+    # ALL-CAPS short line without punctuation → treat as heading even without bold/font bump
+    # (common in plain-text and ATS-export resumes)
+    if uppercase_ratio >= 0.85 and len(cleaned.split()) <= 5 and "." not in cleaned:
+        return True
     return is_bold and (max_font_size >= body_font_size + 2.5 or uppercase_ratio > 0.75)
 
 
@@ -427,13 +505,16 @@ def _looks_like_name(value: str) -> bool:
     if "," in value:
         return False
     words = [word.strip(".,") for word in re.split(r"\s+", value) if word]
-    if len(words) < 2 or len(words) > 5:
+    # Allow up to 6 words to capture compound names ("Jean Pierre Marie Dupont")
+    if len(words) < 2 or len(words) > 6:
         return False
     if any(any(character.isdigit() for character in word) for word in words):
         return False
     if any("@" in word or "http" in word.lower() for word in words):
         return False
-    return all(re.fullmatch(r"[A-Za-z][A-Za-z'.-]*", word) is not None for word in words)
+    # Accept Unicode letters, apostrophes, hyphens, and dots (handles José, François, O'Brien, etc.)
+    _NAME_WORD_RE = re.compile(r"[^\W\d_][\w'.‐‑‒–—\-]*", re.UNICODE)
+    return all(_NAME_WORD_RE.fullmatch(word) is not None for word in words)
 
 
 def _visible_url_links(
@@ -750,11 +831,22 @@ def _parse_work_experience(
             and DATE_RANGE_PATTERN.search(header or "")
             and ROLE_WORD_PATTERN.search(header or "")
         )
-        looks_like_entry = bool(
+        # Bold blocks with any title/company/role signal → entry header
+        bold_entry = bool(
             block.get("is_bold")
             and header_is_short
             and (header_title or header_company or ROLE_WORD_PATTERN.search(header or text) or DATE_RANGE_PATTERN.search(text))
-        ) or inline_header_entry
+        )
+        # Non-bold blocks: accept if they have both an identified title/company AND a date range
+        # (many modern / ATS-exported resumes omit bold markup)
+        non_bold_entry = bool(
+            not block.get("is_bold")
+            and header_is_short
+            and not BULLET_LINE_PATTERN.match(header or "")
+            and (header_title or header_company)
+            and DATE_RANGE_PATTERN.search(text)
+        )
+        looks_like_entry = bold_entry or non_bold_entry or inline_header_entry
         if looks_like_entry:
             finalize()
             start_date, end_date = _extract_date_range(text)
@@ -1012,7 +1104,10 @@ def _identity_from_header(
         summary_lines = []
         for block in sections["summary"]:
             summary_lines.extend(block.get("lines", []))
-        summary = _clean_text(" ".join(summary_lines[:4])) or None
+        # No artificial line cap — capture the full summary section
+        # but guard against accidentally including subsequent section content (>600 chars)
+        raw_summary = _clean_text(" ".join(summary_lines))
+        summary = raw_summary[:600] if raw_summary else None
 
     headline = next((candidate for candidate in headline_candidates if candidate), None)
 
@@ -1036,14 +1131,21 @@ def _collect_skills(
     explicit_skills: list[str] = []
     for block in sections.get("skills", []):
         for line in block.get("lines", []):
-            explicit_skills.extend(part.strip() for part in re.split(r"[|,/·•]+", line) if part.strip())
+            # Wider set of separators including ;, &, tab, and em-dashes used in skill lists
+            explicit_skills.extend(part.strip() for part in re.split(r"[|,/·•;\t]+|\s+&\s+|\s+and\s+", line) if part.strip())
 
     ner_skills = [entity["text"] for entity in ner_for_text(document.extracted_text) if entity["type"] == "SKILL"]
     derived = []
     for item in [*work_experience, *projects]:
         derived.extend(item.get("technologies", []))
-    derived.extend(extract_skills(document.extracted_text))
-    return _unique_skill_strings([*explicit_skills, *ner_skills, *derived])
+    # Only add derived/NER skills that are NOT already covered by explicit section skills
+    # (avoids NER noise dominating when an explicit skills section is present)
+    explicit_lower = {s.lower() for s in _unique_skill_strings(explicit_skills)}
+    ner_new = [s for s in ner_skills if s.lower() not in explicit_lower]
+    if not explicit_lower:
+        # No explicit section — add regex-derived skills from full text too
+        derived.extend(extract_skills(document.extracted_text))
+    return _unique_skill_strings([*explicit_skills, *ner_new, *derived])
 
 
 def _coerce_schema(payload: dict[str, Any], document_id: str) -> dict[str, Any]:
@@ -1079,34 +1181,60 @@ def _gpt_format_resume_json(
     settings: Settings,
     document: Document,
 ) -> dict[str, Any]:
+    """LLM-powered gap-fill: fix only the fields that the rule-based parser got wrong or left empty."""
     client = OpenAI(api_key=settings.openai_api_key)
-    compact_sections = {
-        key: value[:2500]
-        for key, value in section_map.items()
-        if value
-    }
+
+    # Identify weak fields to focus the LLM on — avoids reprocessing already-good data
+    identity = draft.get("identity", {})
+    weak_fields: list[str] = []
+    if not identity.get("full_name"):
+        weak_fields.append("identity.full_name")
+    if not identity.get("headline"):
+        weak_fields.append("identity.headline")
+    if not identity.get("summary"):
+        weak_fields.append("identity.summary")
+    if not draft.get("work_experience"):
+        weak_fields.append("work_experience")
+    if not draft.get("education"):
+        weak_fields.append("education")
+    if len(draft.get("skills", [])) < 3:
+        weak_fields.append("skills")
+    if not draft.get("projects"):
+        weak_fields.append("projects")
+
+    # Only truncate large sections to keep the prompt focused
+    compact_sections = {key: value[:3000] for key, value in section_map.items() if value}
+
+    system_prompt = (
+        "You are a precise resume parser assistant. "
+        "Your job is to CORRECT and COMPLETE the structured resume output from an automated parser.\n\n"
+        "RULES:\n"
+        "1. Return the COMPLETE corrected JSON — same schema as the draft.\n"
+        "2. Fix ONLY what is wrong or missing. Do NOT change fields that already look correct.\n"
+        "3. Use ONLY information explicitly present in the raw section text provided. NEVER invent or hallucinate.\n"
+        "4. For work_experience and education, preserve all items already in the draft; only ADD missing ones.\n"
+        "5. For skills, merge with the draft list; remove obvious noise (single letters, prepositions).\n"
+        "6. If evidence for a field is genuinely absent, keep it null/empty — do not guess.\n"
+        "7. Dates: use the format found in the text (e.g. 'Jan 2021', '2021', 'June 2019 - Present').\n"
+        "8. Return valid JSON only. No markdown, no prose outside the JSON.\n\n"
+        f"Weak/missing fields that NEED attention: {', '.join(weak_fields) if weak_fields else 'none — general quality pass only'}."
+    )
+
     response = client.chat.completions.create(
         model=settings.resume_formatter_model or settings.openai_model,
         temperature=0.0,
         response_format={"type": "json_object"},
         messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You repair resume parsing output. Return JSON with keys: identity, skills, public_profiles, "
-                    "education, work_experience, projects, certifications. Use only explicit evidence from the provided "
-                    "sections and links. Keep null or empty arrays when evidence is weak. Do not invent missing details."
-                ),
-            },
+            {"role": "system", "content": system_prompt},
             {
                 "role": "user",
                 "content": json.dumps(
                     {
                         "filename": document.filename,
-                        "draft": draft,
-                        "sections": compact_sections,
-                        "links": draft.get("public_profiles", []),
-                    }
+                        "current_parsed_draft": draft,
+                        "raw_sections": compact_sections,
+                    },
+                    ensure_ascii=False,
                 ),
             },
         ],
@@ -1189,17 +1317,38 @@ def parse_resume_document(document: Document, settings: Settings) -> tuple[dict[
         for section in sections
     }
     ner_cache: dict[str, list[dict[str, Any]]] = {}
+    gliner_cache: dict[str, list[dict[str, Any]]] = {}
 
     def ner_for_text(text: str) -> list[dict[str, Any]]:
         cleaned = _clean_multiline_text(text)
         if not cleaned:
             return []
+
+        # --- oksomu/resume-ner (ONNX, BIO token classification) ---
         if cleaned not in ner_cache:
             try:
                 ner_cache[cleaned] = _run_resume_ner(cleaned, settings)
             except Exception as exc:
                 warnings.append(f"Local resume NER failed with {exc.__class__.__name__}.")
                 ner_cache[cleaned] = []
+
+        # --- GLiNER (zero-shot span extraction, optional) ---
+        if cleaned not in gliner_cache:
+            from app.services.gliner_ner import gliner_available, run_gliner_ner
+            if gliner_available(settings):
+                try:
+                    gliner_cache[cleaned] = run_gliner_ner(cleaned, settings)
+                except Exception as exc:
+                    warnings.append(f"GLiNER NER failed with {exc.__class__.__name__}.")
+                    gliner_cache[cleaned] = []
+            else:
+                gliner_cache[cleaned] = []
+
+        # Merge: keep highest-confidence entity when both models agree on (type, text)
+        if gliner_cache[cleaned]:
+            from app.services.gliner_ner import merge_ner_results
+            return merge_ner_results(ner_cache[cleaned], gliner_cache[cleaned])
+
         return ner_cache[cleaned]
 
     work_experience = _parse_work_experience(section_blocks.get("work_experience", []), document.id, ner_for_text)

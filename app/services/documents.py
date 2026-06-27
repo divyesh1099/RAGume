@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models import Chunk, Document, Profile
-from app.services.chunking import chunk_text
+from app.services.chunking import chunk_document
 from app.services.embeddings import ensure_chunk_embeddings
 from app.services.parsing import (
     UnsupportedDocumentError,
@@ -87,12 +87,9 @@ def ingest_uploaded_document(
     session.add(document)
     session.flush()
 
-    chunks = chunk_text(
-        extracted_text,
-        max_chars=settings.max_chunk_chars,
-        overlap_chars=settings.chunk_overlap_chars,
-    )
+    chunks = chunk_document(extracted_text, settings)
 
+    from app.services.embeddings import any_embedding_available, _effective_chunk_model_name
     chunk_records: list[Chunk] = []
     for index, item in enumerate(chunks):
         chunk_record = Chunk(
@@ -102,7 +99,11 @@ def ingest_uploaded_document(
             token_count=item["token_count"],
             start_char=item["start_char"],
             end_char=item["end_char"],
-            chunk_metadata={"source": "document_ingestion"},
+            chunk_metadata={
+                "source": "document_ingestion",
+                "strategy": item.get("strategy", "paragraph"),
+                "section": item.get("section"),
+            },
         )
         session.add(chunk_record)
         chunk_records.append(chunk_record)
@@ -112,10 +113,13 @@ def ingest_uploaded_document(
     if chunk_records:
         try:
             ensure_chunk_embeddings(session, chunk_records, settings)
+            embedding_on = any_embedding_available(settings)
             document.parse_metadata = {
                 **document.parse_metadata,
-                "embedding_status": "indexed" if settings.enable_embedding_retrieval and settings.openai_api_key else "disabled",
-                "embedding_model": settings.openai_embedding_model if settings.enable_embedding_retrieval and settings.openai_api_key else None,
+                "embedding_status": "indexed" if embedding_on else "disabled",
+                "embedding_model": _effective_chunk_model_name(settings) if embedding_on else None,
+                "chunk_count": len(chunk_records),
+                "chunk_strategies": list({c.chunk_metadata.get("strategy", "paragraph") for c in chunk_records}),
             }
         except Exception as exc:
             document.parse_metadata = {

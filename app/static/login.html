@@ -3,35 +3,37 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Resume Workspace · Login</title>
-    <meta name="description" content="Log in to Resume Workspace.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+    <title>RAGume · Log In</title>
+    <meta name="description" content="Log in to RAGume.">
     <link rel="stylesheet" href="/assets/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   </head>
   <body data-page="login">
     <div class="auth-shell">
-      <div class="auth-brand">
-        <span class="brand-mark">RR</span>
-        <div>
-          <strong>Resume Workspace</strong>
-          <span>Profile workspace</span>
-        </div>
-      </div>
-
       <main class="auth-card">
-        <span class="eyebrow">Welcome back</span>
-        <h1>Log in</h1>
-        <p class="subtle">Sign in to manage profiles, evidence, wikis, and future outputs.</p>
+        <div class="auth-brand">
+          <span class="auth-brand-mark">RG</span>
+          <span class="auth-brand-name">RAGume</span>
+        </div>
+
+        <div class="auth-head">
+          <h1>Log in</h1>
+          <p>Sign in to your profile workspace.</p>
+        </div>
+
         <form class="form-stack" id="login-form">
-          <label class="field-label" for="login-email">Email</label>
-          <input id="login-email" type="email" autocomplete="email" required>
-          <label class="field-label" for="login-password">Password</label>
-          <input id="login-password" type="password" autocomplete="current-password" required>
+          <div>
+            <label class="field-label" for="login-email">Email</label>
+            <input id="login-email" type="email" autocomplete="email" placeholder="you@example.com" required>
+          </div>
+          <div>
+            <label class="field-label" for="login-password">Password</label>
+            <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+          </div>
           <button class="primary-button auth-button" type="submit" id="login-button">Log In</button>
         </form>
-        <p class="auth-meta">New here? <a href="/register">Create an account</a></p>
+
+        <p class="auth-links">New here? <a href="/register">Create an account</a></p>
       </main>
     </div>
 

@@ -49,7 +49,7 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
         transport = httpx.ASGITransport(app=app)
 
         async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-            for route in ("/login", "/register", "/profiles/select", "/", "/job", "/wiki", "/profile", "/benchmarks"):
+            for route in ("/login", "/register", "/profiles/select", "/", "/job", "/resume", "/benchmarks"):
                 response = await client.get(route)
                 assert response.status_code == 200
                 assert "text/html" in response.headers["content-type"]
@@ -132,90 +132,11 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
             reparse_payload = reparse_response.json()
             assert reparse_payload["document"]["parse_metadata"]["profile_parser_backend"] == "layout_ner"
 
-            studio_review_response = await client.get(f"/profile/studio/review?profile_id={profile_id}")
-            assert studio_review_response.status_code == 200
-            studio_review = studio_review_response.json()
-            assert studio_review["profile_id"] == profile_id
-            assert studio_review["claims_total"] >= 6
-            assert any(section["section"] == "identity" and section["claims"] for section in studio_review["sections"])
-            assert any(section["section"] == "work_experience" and section["claims"] for section in studio_review["sections"])
-            assert studio_review["extracted_profile"]["profile_mode"] == "auto"
-            assert studio_review["review_preview_profile"]["profile_mode"] == "review"
-            assert len(studio_review["review_preview_profile"]["work_experience"]) >= 1
-            assert studio_review["correction_summary"]["auto_corrected"] >= 2
-            assert studio_review["diagnostics"]["correction"]["embedding_retrieval_enabled"] is False
-            assert len(studio_review["diagnostics"]["parser_sources"]) == 1
-            assert any("github.com/divyesh" == link["url"].removeprefix("https://").removeprefix("http://") for link in studio_review["review_preview_profile"]["public_profiles"])
-            assert all("fastpdf-pipeline" not in link["url"] for link in studio_review["review_preview_profile"]["public_profiles"])
-            assert any(
-                any("fastpdf-pipeline" in link for link in project.get("links", []))
-                for project in studio_review["review_preview_profile"]["projects"]
-            )
-
-            skill_section_initial = next(section for section in studio_review["sections"] if section["section"] == "skills")
-            postgres_claim = next(claim for claim in skill_section_initial["claims"] if claim["raw_value_json"].get("name") == "postgres")
-            fastapi_claim = next(claim for claim in skill_section_initial["claims"] if claim["raw_value_json"].get("name") == "Fast API")
-            assert postgres_claim["value_json"]["name"] == "PostgreSQL"
-            assert postgres_claim["resolver_action"] == "auto_correct"
-            assert fastapi_claim["value_json"]["name"] == "FastAPI"
-            assert fastapi_claim["resolver_action"] == "auto_correct"
-            assert "PostgreSQL" in studio_review["review_preview_profile"]["skills"]
-            assert "FastAPI" in studio_review["review_preview_profile"]["skills"]
-
-            identity_section = next(section for section in studio_review["sections"] if section["section"] == "identity")
-            editable_identity_claim = next(claim for claim in identity_section["claims"] if claim["field_name"] == "headline")
-            studio_edit_response = await client.patch(
-                f"/profile/studio/claims/{editable_identity_claim['id']}?profile_id={profile_id}",
-                json={
-                    "status": "edited",
-                    "section": "identity",
-                    "value_json": {"value": "Principal Document AI Engineer"},
-                },
-            )
-            assert studio_edit_response.status_code == 200
-            assert studio_edit_response.json()["status"] == "edited"
-            assert studio_edit_response.json()["value_json"]["value"] == "Principal Document AI Engineer"
-
-            studio_review_after_edit = await client.get(f"/profile/studio/review?profile_id={profile_id}")
-            assert studio_review_after_edit.status_code == 200
-            identity_section_after_edit = next(
-                section for section in studio_review_after_edit.json()["sections"] if section["section"] == "identity"
-            )
-            persisted_identity_claim = next(
-                claim for claim in identity_section_after_edit["claims"] if claim["id"] == editable_identity_claim["id"]
-            )
-            assert persisted_identity_claim["status"] == "edited"
-            assert persisted_identity_claim["value_json"]["value"] == "Principal Document AI Engineer"
-            assert studio_review_after_edit.json()["review_preview_profile"]["identity"]["headline"] == "Principal Document AI Engineer"
-
-            skill_section = next(section for section in studio_review_after_edit.json()["sections"] if section["section"] == "skills")
-            rejected_skill_claim = next(claim for claim in skill_section["claims"] if claim["value_json"]["name"] == "PostgreSQL")
-            reject_skill_response = await client.patch(
-                f"/profile/studio/claims/{rejected_skill_claim['id']}?profile_id={profile_id}",
-                json={"status": "rejected", "section": "skills"},
-            )
-            assert reject_skill_response.status_code == 200
-
-            studio_review_after_reject = await client.get(f"/profile/studio/review?profile_id={profile_id}")
-            assert studio_review_after_reject.status_code == 200
-            assert "PostgreSQL" not in studio_review_after_reject.json()["review_preview_profile"]["skills"]
-
-            accept_all_response = await client.post(f"/profile/studio/claims/accept-all?profile_id={profile_id}")
-            assert accept_all_response.status_code == 200
-            assert accept_all_response.json()["updated"] >= 1
-
-            save_profile_response = await client.post(f"/profile/studio/save?profile_id={profile_id}")
-            assert save_profile_response.status_code == 200
-            saved_profile = save_profile_response.json()
-            assert saved_profile["profile_mode"] == "canonical"
-            assert saved_profile["identity"]["full_name"] == "Divyesh Vishwakarma"
-            assert len(saved_profile["work_experience"]) >= 1
-
             overview_response = await client.get(f"/profile/overview?profile_id={profile_id}")
             assert overview_response.status_code == 200
             overview = overview_response.json()
             assert overview["profile_id"] == profile_id
-            assert overview["profile_mode"] == "canonical"
+            assert overview["profile_mode"] == "auto"
             assert overview["identity"]["full_name"] == "Divyesh Vishwakarma"
             assert "divyesh@example.com" in overview["identity"]["emails"]
             assert any("98765" in phone for phone in overview["identity"]["phones"])
@@ -267,19 +188,6 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
             assert reset_overview["identity"]["headline"] != "Senior Document AI Engineer"
             assert any("linkedin.com" in link["url"] for link in reset_overview["public_profiles"])
 
-            clear_canonical_response = await client.delete(f"/profile/studio/canonical?profile_id={profile_id}")
-            assert clear_canonical_response.status_code == 200
-            assert clear_canonical_response.json()["profile_mode"] == "auto"
-
-            wiki_response = await client.get(f"/profile/wiki?profile_id={profile_id}")
-            assert wiki_response.status_code == 200
-            wiki_payload = wiki_response.json()
-            profile_article = next(article for article in wiki_payload["articles"] if article["slug"] == "profile")
-            assert "uploaded evidence" in profile_article["lede"].lower() or "evidence-backed" in profile_article["lede"].lower()
-            section_titles = [section["title"] for section in profile_article["sections"]]
-            assert "Work Experience" in section_titles
-            assert "Projects" in section_titles
-
             delete_document_response = await client.delete(f"/documents/{document_id}?profile_id={profile_id}")
             assert delete_document_response.status_code == 200
 
@@ -295,127 +203,6 @@ def test_auth_pages_and_auto_profile_flow(tmp_path: Path) -> None:
             assert cleaned["education"] == []
             assert cleaned["projects"] == []
             assert cleaned["source_documents"] == []
-
-    asyncio.run(scenario())
-
-
-def test_evidence_fusion_dedupes_noise_and_flags_conflicts(tmp_path: Path) -> None:
-    async def scenario() -> None:
-        settings = Settings(
-            database_url=f"sqlite:///{tmp_path / 'fusion.db'}",
-            uploads_dir=str(tmp_path / "uploads"),
-            enable_llm_extractor=False,
-            enable_embedding_retrieval=False,
-            enable_resume_ner=False,
-            enable_resume_gpt_formatter=False,
-        )
-        app = create_app(settings)
-        transport = httpx.ASGITransport(app=app)
-
-        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-            profile = await register_and_create_profile(client, email="fusion@example.com", profile_name="Fusion Profile")
-            profile_id = profile["id"]
-
-            primary_resume = """
-            Divyesh Vishwakarma
-            AI/ML Developer | Mumbai, India
-            divyesh1099@gmail.com | +91 9920192856 | https://linkedin.com/in/divyesh-vishwakarma-621197175 | https://github.com/divyesh1099 | https://divyeshvishwakarma.com
-
-            SKILLS
-            Python, Fast API, postgres, /CD, peline, Lang, OCR, Docker
-
-            WORK EXPERIENCE
-            AI/ML Developer | Pal India | Jan 2024 - Present | Mumbai, India
-            Built OCR and FastAPI services for document workflows.
-
-            EDUCATION
-            Bachelor of Technology in Computer Science
-            Bharati Vidyapeeth College of Engineering
-            GPA 8.34
-
-            PROJECTS
-            RAGume
-            Built a resume customization workflow.
-            https://github.com/divyesh1099/ragume
-            """
-
-            secondary_resume = """
-            Divyesh Vishwakarma
-            Machine Learning Developer | Mumbai, India
-            divyesh1099@gmail.com | +91 99201 92856 | https://www.linkedin.com/in/divyesh-vishwakarma-621197175/ | https://github.com/divyesh1099 | https://anitab.org
-
-            SKILLS
-            Python, FastAPI, PostgreSQL, OCR, Docker
-
-            WORK EXPERIENCE
-            Machine Learning Developer | Pal India | 2024 - Present | Mumbai, India
-            Built ML pipelines and OCR review tooling.
-
-            EDUCATION
-            Bachelor of Computer Science
-            Bharati Vidyapeeth College of Engineering
-            """
-
-            for index, resume_text in enumerate((primary_resume, secondary_resume), start=1):
-                upload_response = await client.post(
-                    "/documents/upload",
-                    data={"profile_id": profile_id, "parser_backend": "auto"},
-                    files={"file": (f"resume-{index}.txt", resume_text, "text/plain")},
-                )
-                assert upload_response.status_code == 200
-
-            review_response = await client.get(f"/profile/studio/review?profile_id={profile_id}")
-            assert review_response.status_code == 200
-            review = review_response.json()
-            fusion = review["fusion"]
-            preview = fusion["preview_profile"]
-
-            assert fusion["summary"]["merged_total"] >= 3
-            assert fusion["summary"]["review_total"] >= 2
-            assert fusion["summary"]["ignored_total"] >= 1 or review["correction_summary"]["rejected"] >= 1
-
-            assert preview["identity"]["emails"] == ["divyesh1099@gmail.com"]
-            assert len([link for link in preview["public_profiles"] if "linkedin.com/in/divyesh-vishwakarma-621197175" in link["url"]]) == 1
-            assert all("anitab.org" not in link["url"] for link in preview["public_profiles"])
-            assert any(link["url"] == "https://github.com/divyesh1099" for link in preview["public_profiles"])
-
-            skill_names = {skill.lower() for skill in preview["skills"]}
-            assert "python" in skill_names
-            assert "fastapi" in skill_names
-            assert "postgresql" in skill_names
-            assert "/cd".lower() not in skill_names
-            assert "peline" not in skill_names
-            assert "lang" not in skill_names
-
-            review_reasons = {group["review_reason"] for group in fusion["review_groups"]}
-            assert "same_company_different_roles" in review_reasons
-            assert "degree_wording_conflict" in review_reasons or "portfolio_conflict" in review_reasons
-
-            ignored_text = " ".join(group["canonical_value"].lower() for group in fusion["ignored_groups"])
-            rejected_noise_values = " ".join(
-                str(claim["raw_value_json"].get("name", "")).lower()
-                for section in review["sections"]
-                for claim in section["claims"]
-                if claim.get("admission_status") == "reject_noise"
-            )
-            assert (
-                "lang" in ignored_text
-                or "peline" in ignored_text
-                or "/cd" in ignored_text
-                or "lang" in rejected_noise_values
-                or "peline" in rejected_noise_values
-                or "/cd" in rejected_noise_values
-            )
-
-            save_response = await client.post(f"/profile/studio/save?profile_id={profile_id}")
-            assert save_response.status_code == 200
-            saved = save_response.json()
-            saved_skills = {skill.lower() for skill in saved["skills"]}
-            assert "fastapi" in saved_skills
-            assert "postgresql" in saved_skills
-            assert "peline" not in saved_skills
-            assert all("anitab.org" not in link["url"] for link in saved["public_profiles"])
-            assert len([link for link in saved["public_profiles"] if "linkedin.com/in/divyesh-vishwakarma-621197175" in link["url"]]) == 1
 
     asyncio.run(scenario())
 
@@ -493,10 +280,9 @@ def test_delete_evidence_rolls_back_saved_canonical_profile(tmp_path: Path) -> N
             assert upload_two.status_code == 200
             second_document_id = upload_two.json()["document"]["id"]
 
-            save_response = await client.post(f"/profile/studio/save?profile_id={profile_id}")
-            assert save_response.status_code == 200
-            saved = save_response.json()
-            assert saved["profile_mode"] == "canonical"
+            overview_two_docs = await client.get(f"/profile/overview?profile_id={profile_id}")
+            assert overview_two_docs.status_code == 200
+            saved = overview_two_docs.json()
             assert saved["documents_total"] == 2
             assert any(
                 any("fastpdf-pipeline" in link for link in project.get("links", []))
@@ -513,7 +299,7 @@ def test_delete_evidence_rolls_back_saved_canonical_profile(tmp_path: Path) -> N
             overview_after_one_delete = await client.get(f"/profile/overview?profile_id={profile_id}")
             assert overview_after_one_delete.status_code == 200
             rolled_back = overview_after_one_delete.json()
-            assert rolled_back["profile_mode"] == "canonical"
+            assert rolled_back["profile_mode"] == "auto"
             assert rolled_back["documents_total"] == 1
             assert [item["document_id"] for item in rolled_back["source_documents"]] == [first_document_id]
             assert any(
@@ -531,10 +317,6 @@ def test_delete_evidence_rolls_back_saved_canonical_profile(tmp_path: Path) -> N
                 (item.get("organization") or "").lower() != "internal tools"
                 for item in rolled_back["work_experience"]
             )
-
-            studio_after_one_delete = await client.get(f"/profile/studio/review?profile_id={profile_id}")
-            assert studio_after_one_delete.status_code == 200
-            assert studio_after_one_delete.json()["fusion"]["preview_profile"]["documents_total"] == 1
 
             delete_first = await client.delete(f"/documents/{first_document_id}?profile_id={profile_id}")
             assert delete_first.status_code == 200
@@ -640,25 +422,6 @@ def test_profile_selection_and_isolation_flow(tmp_path: Path) -> None:
             second_documents = (await client.get(f"/documents?profile_id={second_profile['id']}")).json()
             assert [document["id"] for document in first_documents] == [first_document_id]
             assert [document["id"] for document in second_documents] == [second_document_id]
-
-            first_wiki = (await client.get(f"/profile/wiki?profile_id={primary_profile['id']}")).json()
-            second_wiki = (await client.get(f"/profile/wiki?profile_id={second_profile['id']}")).json()
-            first_profile_article = next(article for article in first_wiki["articles"] if article["slug"] == "profile")
-            second_profile_article = next(article for article in second_wiki["articles"] if article["slug"] == "profile")
-            first_text = " ".join(
-                bullet["text"]
-                for section in first_profile_article["sections"]
-                for bullet in section.get("bullet_items", [])
-            ).lower()
-            second_text = " ".join(
-                bullet["text"]
-                for section in second_profile_article["sections"]
-                for bullet in section.get("bullet_items", [])
-            ).lower()
-            assert "ocr" in first_text or "layoutlmv3" in first_text
-            assert "fastapi" not in first_text
-            assert "fastapi" in second_text
-            assert "layoutlmv3" not in second_text
 
             rename_response = await client.patch(
                 f"/profiles/{second_profile['id']}",

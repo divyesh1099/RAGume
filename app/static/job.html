@@ -3,71 +3,69 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RAGume · Job Description</title>
-    <meta name="description" content="Paste or upload a job description and compare it against the selected profile.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+    <title>RAGume · Job Match</title>
+    <meta name="description" content="Paste or upload a job description and compare it against the current profile.">
     <link rel="stylesheet" href="/assets/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   </head>
   <body data-page="job">
-    <div class="app-frame">
-      <header class="topbar">
+    <div class="app-shell">
+      <nav class="sidebar" aria-label="Main navigation">
         <a class="brand" href="/">
           <span class="brand-mark">RG</span>
-          <span class="brand-copy">
-            <strong>RAGume</strong>
-            <span>Profile Studio</span>
-          </span>
+          <span class="brand-name">RAGume</span>
         </a>
-        <nav class="topnav">
-          <a class="topnav-link" href="/">Evidence</a>
-          <a class="topnav-link" href="/profile">Profile Studio</a>
-          <a class="topnav-link is-active" href="/job">Job Description</a>
-          <a class="topnav-link" href="/wiki">Wiki</a>
-          <a class="topnav-link" href="/benchmarks">Benchmarks</a>
-        </nav>
-        <div class="topbar-actions">
-          <button class="secondary-button" type="button" id="switch-profile-button">Switch Profile</button>
-          <span class="identity-pill" id="auth-user-pill">Account</span>
-          <button class="secondary-button" type="button" id="logout-button">Sign Out</button>
+
+        <div class="sidenav">
+          <a class="sidenav-link" href="/">Evidence</a>
+          <a class="sidenav-link" href="/resume">Resume &amp; CV</a>
+          <a class="sidenav-link is-active" href="/job">Job Match</a>
+          <span class="sidenav-sep"></span>
+          <a class="sidenav-link sidenav-dev" href="/benchmarks">Benchmarks</a>
         </div>
-      </header>
 
-      <main class="page-stack">
-        <section class="hero-panel">
-          <span class="eyebrow">Role targeting</span>
-          <h1>Job Description</h1>
-          <p>Paste or upload a JD and compare it against the current profile, projects, experience, and supporting evidence.</p>
-          <div class="hero-meta">
-            <div>
-              <strong id="current-profile-name">Loading profile</strong>
-              <span id="current-profile-meta">Preparing workspace context.</span>
-            </div>
-            <span class="subtle" id="jd-profile-context">Loading profile context.</span>
+        <div class="sidebar-foot">
+          <div class="sidebar-profile-chip">
+            <div class="sidebar-profile-name" id="current-profile-name">Loading</div>
+            <div class="sidebar-profile-sub" id="current-profile-meta">—</div>
           </div>
-        </section>
+          <div class="sidebar-actions">
+            <button class="sidebar-btn" type="button" id="switch-profile-button">Switch</button>
+            <button class="sidebar-btn sidebar-signout" type="button" id="logout-button">Sign Out</button>
+          </div>
+          <span class="sidebar-user-pill" id="auth-user-pill">Account</span>
+        </div>
+      </nav>
 
-        <section class="stats-row">
+      <main class="main-content">
+        <div class="page-header">
+          <h1>Job Match</h1>
+          <p>Paste or upload a job description and see how the current profile aligns to it.</p>
+          <div class="page-context">
+            <span class="page-context-meta" id="jd-profile-context">Loading profile context.</span>
+          </div>
+        </div>
+
+        <div class="stats-row">
           <article class="metric-card">
             <span>Documents</span>
-            <strong id="metric-documents">0</strong>
+            <strong class="metric-num" id="metric-documents">0</strong>
           </article>
           <article class="metric-card">
             <span>Experience</span>
-            <strong id="metric-pending">0</strong>
+            <strong class="metric-num" id="metric-pending">0</strong>
           </article>
           <article class="metric-card">
             <span>Projects</span>
-            <strong id="metric-approved">0</strong>
+            <strong class="metric-num" id="metric-approved">0</strong>
           </article>
           <article class="metric-card">
             <span>Skills</span>
-            <strong id="metric-graph">0</strong>
+            <strong class="metric-num" id="metric-graph">0</strong>
           </article>
-        </section>
+        </div>
 
-        <section class="split-grid">
+        <div class="split-grid">
           <article class="surface">
             <div class="surface-header">
               <div>
@@ -76,16 +74,18 @@
               </div>
             </div>
             <div class="form-stack">
-              <textarea id="jd-input" rows="18" placeholder="Paste the job description here. This draft stays in your browser and is matched against the current profile."></textarea>
+              <textarea id="jd-input" rows="16"
+                placeholder="Paste the job description here. It is matched against your current profile."></textarea>
               <div class="inline-row wrap">
                 <label class="file-trigger" for="jd-file-input">
-                  <input id="jd-file-input" type="file" accept=".txt,.md,.pdf,.docx,.json,.yaml,.yml,.csv,.log">
+                  <input id="jd-file-input" type="file"
+                    accept=".txt,.md,.pdf,.docx,.json,.yaml,.yml,.csv,.log">
                   <span id="jd-file-label">Choose a JD file</span>
                 </label>
-                <button class="secondary-button" type="button" id="jd-upload-button">Upload JD file</button>
+                <button class="secondary-button" type="button" id="jd-upload-button">Upload file</button>
                 <button class="primary-button" type="button" id="analyze-jd-button">Analyze JD</button>
               </div>
-              <p class="subtle" id="jd-source-meta">You can paste directly or upload a file to extract text first.</p>
+              <p class="subtle" id="jd-source-meta">Paste directly or upload a file to extract text first.</p>
             </div>
           </article>
 
@@ -98,16 +98,16 @@
             </div>
             <div class="insight-stack">
               <p class="subtle" id="jd-status">Waiting for a job description.</p>
-              <article class="insight-card">
+              <div class="insight-card">
                 <span>Recommended angle</span>
                 <strong id="jd-angle">No JD yet</strong>
-                <p id="jd-angle-copy">Paste or upload a role description to see where the current profile is strongest.</p>
-              </article>
+                <p id="jd-angle-copy">Paste or upload a role description to see where the profile is strongest.</p>
+              </div>
             </div>
           </article>
-        </section>
+        </div>
 
-        <section class="split-grid">
+        <div class="split-grid">
           <article class="surface">
             <div class="surface-header">
               <div>
@@ -127,9 +127,9 @@
             </div>
             <div class="tag-row" id="jd-missing-terms"></div>
           </article>
-        </section>
+        </div>
 
-        <section class="surface">
+        <article class="surface">
           <div class="surface-header">
             <div>
               <span class="eyebrow">Matching evidence</span>
@@ -139,7 +139,7 @@
           <div class="match-list" id="jd-matched-claims">
             <div class="empty-state">Profile entries that overlap with the JD will appear here.</div>
           </div>
-        </section>
+        </article>
       </main>
     </div>
 

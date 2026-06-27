@@ -12,11 +12,6 @@ const state = {
   summary: null,
   health: null,
   profileOverview: null,
-  profileStudioReview: null,
-  profileStudioPreview: null,
-  profileFusion: null,
-  profileStudioBucket: "review",
-  profileStudioSectionByBucket: {},
   benchmarkDataset: null,
   benchmarkReport: null,
   documents: [],
@@ -28,9 +23,6 @@ const state = {
   lastExtractionMode: null,
   lastWarnings: [],
   jdText: window.localStorage.getItem("resume_workspace_jd") || "",
-  wiki: { generated_at: null, articles: [] },
-  currentArticleSlug: "profile",
-  wikiQuery: "",
 };
 
 const presetFocusAreas = ["python", "rag", "ocr", "document ai", "backend", "llm", "ml", "automation"];
@@ -153,21 +145,6 @@ const elements = {
   profileAutoProjects: document.querySelector("#profile-auto-projects"),
   profileAutoCertifications: document.querySelector("#profile-auto-certifications"),
   profileAutoSources: document.querySelector("#profile-auto-sources"),
-  profileReviewMeta: document.querySelector("#profile-review-meta"),
-  profileReviewSections: document.querySelector("#profile-review-sections"),
-  acceptAllReviewButton: document.querySelector("#accept-all-review-button"),
-  saveCanonicalButton: document.querySelector("#save-canonical-button"),
-  resetCanonicalButton: document.querySelector("#reset-canonical-button"),
-  profileMemoryMode: document.querySelector("#profile-memory-mode"),
-  profileFusionMeta: document.querySelector("#profile-fusion-meta"),
-  profileFusionMerged: document.querySelector("#profile-fusion-merged"),
-  profileFusionCritical: document.querySelector("#profile-fusion-critical"),
-  profileFusionOptional: document.querySelector("#profile-fusion-optional"),
-  profileFusionIgnored: document.querySelector("#profile-fusion-ignored"),
-  profileViewSelect: document.querySelector("#profile-view-select"),
-  profileDiagnosticsSummary: document.querySelector("#profile-diagnostics-summary"),
-  profileDiagnosticsSources: document.querySelector("#profile-diagnostics-sources"),
-  profileDiagnosticsRecords: document.querySelector("#profile-diagnostics-records"),
 
   benchmarkMetricCases: document.querySelector("#benchmark-metric-cases"),
   benchmarkMetricCategories: document.querySelector("#benchmark-metric-categories"),
@@ -184,20 +161,6 @@ const elements = {
   benchmarkSummaryGrid: document.querySelector("#benchmark-summary-grid"),
   benchmarkFieldMetrics: document.querySelector("#benchmark-field-metrics"),
   benchmarkCaseResults: document.querySelector("#benchmark-case-results"),
-
-  wikiArticleCount: document.querySelector("#wiki-article-count"),
-  wikiSearchInput: document.querySelector("#wiki-search-input"),
-  wikiArticleList: document.querySelector("#wiki-article-list"),
-  wikiTitle: document.querySelector("#wiki-title"),
-  wikiLede: document.querySelector("#wiki-lede"),
-  wikiGeneratedAt: document.querySelector("#wiki-generated-at"),
-  wikiToc: document.querySelector("#wiki-toc"),
-  wikiBody: document.querySelector("#wiki-body"),
-  wikiInfobox: document.querySelector("#wiki-infobox"),
-  wikiSources: document.querySelector("#wiki-sources"),
-  wikiCategories: document.querySelector("#wiki-categories"),
-  wikiRelated: document.querySelector("#wiki-related"),
-  wikiReferences: document.querySelector("#wiki-references"),
 };
 
 function escapeHtml(value) {
@@ -300,11 +263,16 @@ function unique(values) {
 }
 
 function formatSectionLabel(value) {
-  const mapped = reviewSectionChoices().find((choice) => choice.value === value)?.label;
-  if (mapped) {
-    return mapped;
-  }
-  return String(value || "")
+  const sectionLabels = {
+    identity: "Personal",
+    skills: "Skills",
+    work_experience: "Experience",
+    projects: "Projects",
+    education: "Education",
+    certifications: "Certifications",
+    public_profiles: "Links",
+  };
+  return sectionLabels[value] || String(value || "")
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
@@ -541,8 +509,6 @@ function focusAreas() {
 function resetProfileScopedState() {
   state.summary = null;
   state.profileOverview = null;
-  state.profileStudioReview = null;
-  state.profileStudioPreview = null;
   state.documents = [];
   state.selectedDocumentId = null;
   state.parserComparisons = {};
@@ -552,8 +518,6 @@ function resetProfileScopedState() {
   state.retrievedChunks = [];
   state.lastExtractionMode = null;
   state.lastWarnings = [];
-  state.wiki = { generated_at: null, articles: [] };
-  state.currentArticleSlug = "profile";
 }
 
 function renderUserIdentity() {
@@ -1074,71 +1038,180 @@ function renderParserComparison() {
   `;
 }
 
+const PCARD_COLORS = ["#dceefb", "#e8f5ec", "#fef6e6", "#fce8e7", "#ede8fb", "#fef0e6"];
+
 function renderProfileSelector() {
   if (!elements.profileSelectorGrid) {
     return;
   }
 
+  document.removeEventListener("click", _closePcardDropdowns);
+
+  const addCard = `
+    <div class="pcard-wrap">
+      <div class="pcard pcard-add" id="pcard-add-btn">
+        <div class="pcard-face pcard-face-add">
+          <span class="pcard-plus">+</span>
+        </div>
+      </div>
+      <div class="pcard-name pcard-name-muted">New Profile</div>
+    </div>`;
+
   if (!state.profiles.length) {
-    elements.profileSelectorGrid.innerHTML = '<div class="empty-state">No profiles yet. Create your first profile below.</div>';
+    elements.profileSelectorGrid.innerHTML = addCard;
+    document.getElementById("pcard-add-btn")?.addEventListener("click", showCreateProfileModal);
     state.managedProfileId = null;
     updateManagedProfilePanel();
     return;
   }
 
-  if (!state.managedProfileId || !state.profiles.some((profile) => profile.id === state.managedProfileId)) {
-    state.managedProfileId = state.selectedProfileId && state.profiles.some((profile) => profile.id === state.selectedProfileId)
-      ? state.selectedProfileId
-      : state.profiles[0].id;
+  const cards = state.profiles.map((profile) => {
+    const initial = profile.name.trim().charAt(0).toUpperCase() || "P";
+    const isActive = profile.id === state.selectedProfileId;
+    const bg = PCARD_COLORS[profile.name.charCodeAt(0) % PCARD_COLORS.length];
+    const canDelete = state.profiles.length > 1;
+    return `
+      <div class="pcard-wrap" data-pcard-wrap="${profile.id}">
+        <div class="pcard${isActive ? " pcard-is-active" : ""}" data-open-profile="${profile.id}">
+          <div class="pcard-face" style="background:${bg}">
+            <span class="pcard-initial">${escapeHtml(initial)}</span>
+            ${isActive ? '<span class="pcard-active-badge">Active</span>' : ""}
+          </div>
+        </div>
+        <button class="pcard-dots" data-pcard-menu="${profile.id}" aria-label="Options" aria-haspopup="true">···</button>
+        <div class="pcard-dropdown" id="pdrop-${profile.id}" hidden role="menu">
+          <button class="pcard-menu-item" data-edit-profile="${profile.id}">Edit name</button>
+          <button class="pcard-menu-item pcard-menu-danger" data-delete-profile="${profile.id}"${canDelete ? "" : " disabled"}>Delete</button>
+        </div>
+        <div class="pcard-name${isActive ? "" : " pcard-name-muted"}" data-open-profile="${profile.id}">${escapeHtml(profile.name)}</div>
+        <div class="pcard-edit-wrap" id="pedit-${profile.id}" style="display:none">
+          <input class="pcard-edit-input" type="text" value="${escapeHtml(profile.name)}" maxlength="120" aria-label="Profile name">
+          <div class="pcard-edit-actions">
+            <button class="primary-button" data-save-profile="${profile.id}">Save</button>
+            <button class="secondary-button" data-cancel-edit="${profile.id}">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+
+  elements.profileSelectorGrid.innerHTML = cards + addCard;
+
+  // Open profile
+  for (const el of elements.profileSelectorGrid.querySelectorAll("[data-open-profile]")) {
+    el.addEventListener("click", () => openProfile(el.dataset.openProfile));
   }
 
-  elements.profileSelectorGrid.innerHTML = state.profiles
-    .map((profile) => {
-      const initial = profile.name.trim().charAt(0).toUpperCase() || "P";
-      const lastUsed = profile.id === state.selectedProfileId ? '<span class="tag">Last used</span>' : "";
-      const subtitle = profile.headline || `${profile.sections_ready || 0} sections filled`;
-      return `
-        <article class="profile-selector-card${profile.id === state.managedProfileId ? " is-selected" : ""}" data-profile-card="${profile.id}">
-          <div class="profile-card-avatar">${escapeHtml(initial)}</div>
-          <div class="profile-card-body">
-            <strong>${escapeHtml(profile.name)}</strong>
-            <span>${escapeHtml(subtitle)}</span>
-            <span>${profile.document_count} sources · ${profile.work_experience_total || 0} experience · ${profile.projects_total || 0} projects · ${profile.skills_total || 0} skills</span>
-          </div>
-          <div class="meta-row">${lastUsed}</div>
-          <div class="profile-card-actions">
-            <button class="profile-card-button" type="button" data-open-profile="${profile.id}">Open</button>
-            <button class="profile-card-button" type="button" data-manage-profile="${profile.id}">Manage</button>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
+  // 3-dot menu toggle
+  for (const btn of elements.profileSelectorGrid.querySelectorAll("[data-pcard-menu]")) {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const drop = document.getElementById(`pdrop-${btn.dataset.pcardMenu}`);
+      const wasHidden = drop.hidden;
+      for (const d of document.querySelectorAll(".pcard-dropdown")) d.hidden = true;
+      drop.hidden = !wasHidden;
+    });
+  }
 
-  for (const card of elements.profileSelectorGrid.querySelectorAll("[data-profile-card]")) {
-    card.addEventListener("click", (event) => {
-      if (event.target.closest("[data-open-profile]") || event.target.closest("[data-manage-profile]")) {
-        return;
+  // Edit name
+  for (const btn of elements.profileSelectorGrid.querySelectorAll("[data-edit-profile]")) {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.editProfile;
+      document.getElementById(`pdrop-${id}`).hidden = true;
+      const editWrap = document.getElementById(`pedit-${id}`);
+      editWrap.style.display = "flex";
+      editWrap.querySelector(".pcard-edit-input")?.select();
+      const wrap = elements.profileSelectorGrid.querySelector(`[data-pcard-wrap="${id}"] .pcard`);
+      if (wrap) wrap.style.opacity = "0.3";
+    });
+  }
+
+  // Cancel edit
+  for (const btn of elements.profileSelectorGrid.querySelectorAll("[data-cancel-edit]")) {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.cancelEdit;
+      document.getElementById(`pedit-${id}`).style.display = "none";
+      const wrap = elements.profileSelectorGrid.querySelector(`[data-pcard-wrap="${id}"] .pcard`);
+      if (wrap) wrap.style.opacity = "";
+    });
+  }
+
+  // Save edit
+  for (const btn of elements.profileSelectorGrid.querySelectorAll("[data-save-profile]")) {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.saveProfile;
+      const input = document.getElementById(`pedit-${id}`)?.querySelector(".pcard-edit-input");
+      const newName = input?.value.trim();
+      if (!newName) { showToast("Enter a profile name.", "error"); return; }
+      try {
+        btn.disabled = true;
+        btn.textContent = "Saving…";
+        await apiFetch(`/profiles/${id}`, { method: "PATCH", body: JSON.stringify({ name: newName }) });
+        await loadProfiles();
+        showToast("Profile updated.");
+      } catch (err) {
+        showToast(err.message, "error");
+        btn.disabled = false;
+        btn.textContent = "Save";
       }
-      state.managedProfileId = card.dataset.profileCard;
-      renderProfileSelector();
-      updateManagedProfilePanel();
     });
   }
 
-  for (const button of elements.profileSelectorGrid.querySelectorAll("[data-open-profile]")) {
-    button.addEventListener("click", () => openProfile(button.dataset.openProfile));
-  }
-
-  for (const button of elements.profileSelectorGrid.querySelectorAll("[data-manage-profile]")) {
-    button.addEventListener("click", () => {
-      state.managedProfileId = button.dataset.manageProfile;
-      renderProfileSelector();
-      updateManagedProfilePanel();
+  // Enter key in edit input
+  for (const input of elements.profileSelectorGrid.querySelectorAll(".pcard-edit-input")) {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        input.closest(".pcard-edit-wrap")?.querySelector("[data-save-profile]")?.click();
+      }
+      if (e.key === "Escape") {
+        input.closest(".pcard-edit-wrap")?.querySelector("[data-cancel-edit]")?.click();
+      }
     });
   }
 
+  // Delete
+  for (const btn of elements.profileSelectorGrid.querySelectorAll("[data-delete-profile]")) {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      document.getElementById(`pdrop-${btn.dataset.deleteProfile}`).hidden = true;
+      state.managedProfileId = btn.dataset.deleteProfile;
+      await deleteManagedProfile();
+    });
+  }
+
+  // "+" card
+  document.getElementById("pcard-add-btn")?.addEventListener("click", showCreateProfileModal);
+
+  document.addEventListener("click", _closePcardDropdowns);
   updateManagedProfilePanel();
+
+  // Stagger cards in with GSAP if available
+  if (typeof gsap !== "undefined") {
+    gsap.from(elements.profileSelectorGrid.querySelectorAll(".pcard-wrap"), {
+      opacity: 0, y: 18, duration: 0.38, stagger: 0.07, ease: "power2.out", clearProps: "all",
+    });
+  }
+}
+
+function _closePcardDropdowns() {
+  for (const d of document.querySelectorAll(".pcard-dropdown")) d.hidden = true;
+}
+
+function showCreateProfileModal() {
+  const modal = document.getElementById("create-profile-modal");
+  if (modal) {
+    modal.hidden = false;
+    document.getElementById("profile-name-input")?.focus();
+  }
+}
+
+function hideCreateProfileModal() {
+  const modal = document.getElementById("create-profile-modal");
+  if (modal) {
+    modal.hidden = true;
+    if (elements.profileNameInput) elements.profileNameInput.value = "";
+  }
 }
 
 function updateManagedProfilePanel() {
@@ -1366,20 +1439,9 @@ function renderSelectedDocumentSummary() {
 }
 
 function renderProfileOverviewSnapshot() {
-  const overview = page === "profile" && state.profileOverview?.profile_mode !== "canonical" && state.profileStudioPreview
-    ? state.profileStudioPreview
-    : state.profileOverview;
+  const overview = state.profileOverview;
   if (!overview) {
     return;
-  }
-  if (elements.profileMemoryMode) {
-    const focusLabel = overview.profile_focus ? ` Focus: ${formatSectionLabel(overview.profile_focus)}.` : "";
-    const viewLabel = overview.profile_view ? ` View: ${formatSectionLabel(overview.profile_view)}.` : "";
-    elements.profileMemoryMode.textContent = overview.profile_mode === "canonical"
-      ? `This is the saved canonical profile memory that future job outputs should use.${focusLabel}${viewLabel}`
-      : overview.profile_mode === "review"
-        ? `This is the live review preview. Accept, reject, or edit items on the left, then save when it looks right.${focusLabel}${viewLabel}`
-        : `This is the latest extracted profile preview. Save the reviewed sections to lock in a canonical profile.${focusLabel}${viewLabel}`;
   }
 
   const identity = overview.identity || {};
@@ -1480,8 +1542,6 @@ function renderProfileOverviewSnapshot() {
 function availableProfileViews() {
   const values = unique([
     ...(state.profileOverview?.available_views || []),
-    ...(state.profileStudioPreview?.available_views || []),
-    ...(state.profileStudioReview?.canonical_profile?.available_views || []),
   ].filter(Boolean));
   return values.length ? values : ["master", "ai_ml", "web_dev", "full_stack", "ats_short"];
 }
@@ -1491,7 +1551,7 @@ function renderProfileViewControl() {
     return;
   }
   const views = availableProfileViews();
-  const fallback = state.profileOverview?.profile_view || state.profileStudioPreview?.profile_view || state.profileOverview?.profile_focus || "master";
+  const fallback = state.profileOverview?.profile_view || state.profileOverview?.profile_focus || "master";
   const selected = views.includes(state.profileView) ? state.profileView : fallback;
   if (!state.profileView && selected) {
     rememberSelectedProfileView(selected);
@@ -1499,70 +1559,6 @@ function renderProfileViewControl() {
   elements.profileViewSelect.innerHTML = views
     .map((view) => `<option value="${escapeHtml(view)}" ${selected === view ? "selected" : ""}>${escapeHtml(formatSectionLabel(view))}</option>`)
     .join("");
-}
-
-function fusionGroupMarkup(group, anomalyLookup = new Map()) {
-  const metadata = group.group_metadata || {};
-  const anomaly = anomalyLookup.get(group.id);
-  const candidateValues = metadata.candidate_values || [];
-  const ignoredValues = metadata.ignored_values || [];
-  const reasons = metadata.reasons || [];
-  const groupLabel = formatFusionGroupLabel(group.group_type);
-  return `
-    <article class="fusion-entry">
-      <div class="meta-row">
-        <strong>${escapeHtml(groupLabel)}</strong>
-        <span class="chip ${structuredClaimResolverClass(group.merge_action)}">${escapeHtml(String(group.merge_action || "merged").replaceAll("_", " ").toUpperCase())}</span>
-        <span class="meta-text">${confidencePercent(group.confidence)}%</span>
-      </div>
-      <div class="fusion-entry-value">${escapeHtml(group.canonical_value || "No canonical value selected")}</div>
-      <div class="detail-line">${escapeHtml(String(metadata.source_count || group.claim_ids?.length || 0))} sources${metadata.document_count ? ` · ${escapeHtml(String(metadata.document_count))} documents` : ""}</div>
-      ${anomaly ? `<div class="detail-line warning-line">${escapeHtml(anomaly.message)}</div>` : ""}
-      ${candidateValues.length ? `
-        <div class="tag-row">
-          ${candidateValues.slice(0, 4).map((item) => `<span class="tag">${escapeHtml(item.value || item.normalized || "")}</span>`).join("")}
-        </div>
-      ` : ""}
-      ${ignoredValues.length ? `<div class="detail-line">Ignored: ${escapeHtml(ignoredValues.slice(0, 4).join(", "))}</div>` : ""}
-      ${reasons.length ? `<div class="detail-line">${escapeHtml(reasons.join(" · "))}</div>` : ""}
-    </article>
-  `;
-}
-
-function renderProfileFusion() {
-  if (!elements.profileFusionMerged || !elements.profileFusionCritical || !elements.profileFusionOptional || !elements.profileFusionIgnored) {
-    return;
-  }
-  const fusion = state.profileFusion;
-  if (!fusion) {
-    if (elements.profileFusionMeta) {
-      elements.profileFusionMeta.textContent = "Critical conflicts, optional cleanup, and ignored duplicates will appear here.";
-    }
-    elements.profileFusionMerged.innerHTML = '<div class="empty-state">Automatic merges will appear after review data loads.</div>';
-    elements.profileFusionCritical.innerHTML = '<div class="empty-state">Trust-breaking conflicts will appear here.</div>';
-    elements.profileFusionOptional.innerHTML = '<div class="empty-state">Optional cleanup items will appear here.</div>';
-    elements.profileFusionIgnored.innerHTML = '<div class="empty-state">Duplicates and noisy fragments will appear here.</div>';
-    return;
-  }
-
-  const anomalyLookup = new Map((fusion.anomalies || []).filter((item) => item.claim_group_id).map((item) => [item.claim_group_id, item]));
-  if (elements.profileFusionMeta) {
-    const summary = fusion.summary || {};
-    elements.profileFusionMeta.textContent = `${summary.critical_review_total || 0} critical fixes before the profile is trustworthy · ${summary.optional_review_total || 0} optional cleanup items · ${summary.ignored_total || 0} ignored safely`;
-  }
-
-  elements.profileFusionMerged.innerHTML = (fusion.merged_groups || []).length
-    ? fusion.merged_groups.map((group) => fusionGroupMarkup(group, anomalyLookup)).join("")
-    : '<div class="empty-state">No automatic merges yet.</div>';
-  elements.profileFusionCritical.innerHTML = (fusion.critical_review_groups || []).length
-    ? fusion.critical_review_groups.map((group) => fusionGroupMarkup(group, anomalyLookup)).join("")
-    : '<div class="empty-state">No critical conflicts right now.</div>';
-  elements.profileFusionOptional.innerHTML = (fusion.optional_review_groups || []).length
-    ? fusion.optional_review_groups.map((group) => fusionGroupMarkup(group, anomalyLookup)).join("")
-    : '<div class="empty-state">No optional cleanup items right now.</div>';
-  elements.profileFusionIgnored.innerHTML = (fusion.ignored_groups || []).length
-    ? fusion.ignored_groups.map((group) => fusionGroupMarkup(group, anomalyLookup)).join("")
-    : '<div class="empty-state">No duplicates or noisy fragments ignored yet.</div>';
 }
 
 function renderDocuments() {
@@ -1953,757 +1949,7 @@ function analyzeJobDescription() {
   }
 }
 
-function currentWikiArticle() {
-  return state.wiki.articles.find((article) => article.slug === state.currentArticleSlug) || state.wiki.articles[0] || null;
-}
 
-function filteredWikiArticles() {
-  const query = state.wikiQuery.trim().toLowerCase();
-  if (!query) {
-    return state.wiki.articles;
-  }
-  return state.wiki.articles.filter((article) => {
-    const haystack = [
-      article.title,
-      article.lede,
-      ...(article.categories || []),
-      ...(article.source_documents || []),
-    ].join(" ").toLowerCase();
-    return haystack.includes(query);
-  });
-}
-
-function renderCitationLinks(referenceIds) {
-  if (!referenceIds?.length) {
-    return "";
-  }
-  const referencesById = Object.fromEntries((currentWikiArticle()?.references || []).map((reference) => [reference.id, reference]));
-  return referenceIds
-    .map((referenceId) => {
-      const reference = referencesById[referenceId];
-      const label = reference?.label || "?";
-      return `<a class="wiki-citation" href="#${escapeHtml(referenceId)}">[${escapeHtml(label)}]</a>`;
-    })
-    .join("");
-}
-
-function renderWikiSidebar() {
-  if (!elements.wikiArticleList || !elements.wikiArticleCount) {
-    return;
-  }
-  const articles = filteredWikiArticles();
-  elements.wikiArticleCount.textContent = `${articles.length} page${articles.length === 1 ? "" : "s"}`;
-
-  if (!articles.length) {
-    elements.wikiArticleList.innerHTML = '<div class="empty-state">Wiki pages will appear here.</div>';
-    return;
-  }
-
-  elements.wikiArticleList.innerHTML = articles
-    .map(
-      (article) => `
-        <button class="wiki-page-link${article.slug === state.currentArticleSlug ? " is-active" : ""}" type="button" data-article-slug="${article.slug}">
-          <strong>${escapeHtml(article.title)}</strong>
-          <span>${escapeHtml(article.lede)}</span>
-        </button>
-      `
-    )
-    .join("");
-
-  for (const button of elements.wikiArticleList.querySelectorAll("[data-article-slug]")) {
-    button.addEventListener("click", () => {
-      state.currentArticleSlug = button.dataset.articleSlug;
-      renderWiki();
-    });
-  }
-}
-
-function renderWiki() {
-  if (!elements.wikiTitle) {
-    return;
-  }
-
-  renderWikiSidebar();
-  const article = currentWikiArticle();
-
-  if (!article) {
-    elements.wikiTitle.textContent = "Profile";
-    elements.wikiLede.textContent = "No wiki content available yet.";
-    elements.wikiBody.innerHTML = '<div class="empty-state">Upload evidence to build this wiki.</div>';
-    elements.wikiInfobox.innerHTML = "";
-    elements.wikiSources.innerHTML = "";
-    elements.wikiCategories.innerHTML = "";
-    elements.wikiRelated.innerHTML = "";
-    elements.wikiReferences.innerHTML = '<li class="empty-state">No references listed yet.</li>';
-    return;
-  }
-
-  elements.wikiTitle.textContent = article.title;
-  elements.wikiLede.textContent = article.lede;
-  elements.wikiGeneratedAt.textContent = state.wiki.generated_at ? `Updated ${formatDate(state.wiki.generated_at)}` : "Generated";
-  elements.wikiToc.innerHTML = article.sections
-    .map((section) => `<a class="wiki-source-link" href="#section-${escapeHtml(section.id)}">${escapeHtml(section.title)}</a>`)
-    .join("");
-  elements.wikiBody.innerHTML = article.sections
-    .map(
-      (section) => `
-        <section id="section-${escapeHtml(section.id)}">
-          <h3>${escapeHtml(section.title)}</h3>
-          ${(section.paragraphs || []).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
-          ${(section.bullet_items || []).length
-            ? `<ul>${section.bullet_items
-                .map(
-                  (item) => `
-                    <li>
-                      ${escapeHtml(item.text)}
-                      ${renderCitationLinks(item.reference_ids)}
-                    </li>
-                  `
-                )
-                .join("")}</ul>`
-            : ""}
-        </section>
-      `
-    )
-    .join("");
-  elements.wikiInfobox.innerHTML = Object.entries(article.infobox || {})
-    .map(([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd>`)
-    .join("");
-  elements.wikiSources.innerHTML = article.source_documents?.length
-    ? article.source_documents
-        .map((documentName) => {
-          const slug = articleSlugForSourceDocument(documentName);
-          const hasArticle = state.wiki.articles.some((entry) => entry.slug === slug);
-          return hasArticle
-            ? `<a class="wiki-source-link" href="#" data-related-slug="${escapeHtml(slug)}"><strong>${escapeHtml(documentName)}</strong><span>Open source page</span></a>`
-            : `<div class="wiki-source-link"><strong>${escapeHtml(documentName)}</strong><span>Source document</span></div>`;
-        })
-        .join("")
-    : '<div class="empty-inline">No source documents listed.</div>';
-  elements.wikiCategories.innerHTML = (article.categories || [])
-    .map((category) => `<span class="tag">${escapeHtml(category)}</span>`)
-    .join("");
-  elements.wikiRelated.innerHTML = article.related_articles?.length
-    ? article.related_articles
-        .map(
-          (related) => `
-            <a class="wiki-related-link" href="#" data-related-slug="${escapeHtml(related.slug)}">
-              <strong>${escapeHtml(related.title)}</strong>
-              ${related.description ? `<span>${escapeHtml(related.description)}</span>` : ""}
-            </a>
-          `
-        )
-        .join("")
-    : '<div class="empty-inline">No related pages listed.</div>';
-  elements.wikiReferences.innerHTML = article.references?.length
-    ? article.references
-        .map(
-          (reference) => `
-            <li id="${escapeHtml(reference.id)}">
-              <strong>[${escapeHtml(reference.label)}]</strong> ${escapeHtml(reference.title)}. ${escapeHtml(reference.document)}. ${escapeHtml(reference.excerpt)}
-            </li>
-          `
-        )
-        .join("")
-    : '<li class="empty-state">No references listed yet.</li>';
-
-  for (const link of document.querySelectorAll("[data-related-slug]")) {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      state.currentArticleSlug = link.dataset.relatedSlug;
-      renderWiki();
-    });
-  }
-}
-
-function reviewSectionChoices() {
-  return [
-    { value: "identity", label: "Personal" },
-    { value: "skills", label: "Skills" },
-    { value: "work_experience", label: "Experience" },
-    { value: "projects", label: "Projects" },
-    { value: "education", label: "Education" },
-    { value: "certifications", label: "Certifications" },
-    { value: "public_profiles", label: "Links" },
-  ];
-}
-
-function structuredClaimStatusClass(status) {
-  const normalized = String(status || "").toLowerCase();
-  if (normalized === "accepted") {
-    return "success";
-  }
-  if (normalized === "edited" || normalized === "pending" || normalized === "duplicate") {
-    return "warning";
-  }
-  return "danger";
-}
-
-function structuredClaimResolverClass(action) {
-  const normalized = String(action || "").toLowerCase();
-  if (normalized === "auto_correct" || normalized === "accepted_suggestion" || normalized === "admit") {
-    return "success";
-  }
-  if (normalized === "needs_review" || normalized === "reject_noise") {
-    return "danger";
-  }
-  if (normalized === "suggest" || normalized === "manual" || normalized === "duplicate" || normalized === "quarantine") {
-    return "warning";
-  }
-  return "";
-}
-
-function structuredClaimValueText(section, fieldName, value) {
-  const payload = value || {};
-  if (section === "identity") {
-    return payload.value || "";
-  }
-  if (section === "skills") {
-    return payload.name || "";
-  }
-  if (section === "public_profiles") {
-    return [payload.label, payload.url].filter(Boolean).join(" · ");
-  }
-  if (section === "work_experience") {
-    return [payload.title, payload.organization, [payload.start_date, payload.end_date].filter(Boolean).join(" - ")].filter(Boolean).join(" · ");
-  }
-  if (section === "education") {
-    return [payload.degree, payload.institution, payload.field_of_study].filter(Boolean).join(" · ");
-  }
-  if (section === "projects") {
-    return [payload.name, payload.summary].filter(Boolean).join(" · ");
-  }
-  if (section === "certifications") {
-    return [payload.name, payload.issuer, payload.credential_id].filter(Boolean).join(" · ");
-  }
-  return payload.value || payload.name || payload.title || payload.summary || "";
-}
-
-function structuredClaimFieldMarkup(claim) {
-  const value = claim.value_json || {};
-  if (claim.section === "identity") {
-    return `
-      <label class="field-label">Value</label>
-      <input type="text" data-claim-input="value" value="${escapeHtml(value.value || "")}">
-    `;
-  }
-  if (claim.section === "skills") {
-    return `
-      <label class="field-label">Skill</label>
-      <input type="text" data-claim-input="name" value="${escapeHtml(value.name || "")}">
-    `;
-  }
-  if (claim.section === "public_profiles") {
-    return `
-      <div class="two-col-grid compact-grid">
-        <div>
-          <label class="field-label">Label</label>
-          <input type="text" data-claim-input="label" value="${escapeHtml(value.label || "")}">
-        </div>
-        <div>
-          <label class="field-label">URL</label>
-          <input type="text" data-claim-input="url" value="${escapeHtml(value.url || "")}">
-        </div>
-      </div>
-    `;
-  }
-  if (claim.section === "work_experience") {
-    return `
-      <div class="two-col-grid compact-grid">
-        <div>
-          <label class="field-label">Role</label>
-          <input type="text" data-claim-input="title" value="${escapeHtml(value.title || "")}">
-        </div>
-        <div>
-          <label class="field-label">Company</label>
-          <input type="text" data-claim-input="organization" value="${escapeHtml(value.organization || "")}">
-        </div>
-        <div>
-          <label class="field-label">Start</label>
-          <input type="text" data-claim-input="start_date" value="${escapeHtml(value.start_date || "")}">
-        </div>
-        <div>
-          <label class="field-label">End</label>
-          <input type="text" data-claim-input="end_date" value="${escapeHtml(value.end_date || "")}">
-        </div>
-      </div>
-      <label class="field-label">Location</label>
-      <input type="text" data-claim-input="location" value="${escapeHtml(value.location || "")}">
-      <label class="field-label">Summary</label>
-      <textarea rows="4" data-claim-input="summary">${escapeHtml(value.summary || "")}</textarea>
-      <label class="field-label">Highlights</label>
-      <textarea rows="4" data-claim-input="highlights">${escapeHtml((value.highlights || []).join("\n"))}</textarea>
-    `;
-  }
-  if (claim.section === "projects") {
-    return `
-      <label class="field-label">Project</label>
-      <input type="text" data-claim-input="name" value="${escapeHtml(value.name || "")}">
-      <label class="field-label">Summary</label>
-      <textarea rows="4" data-claim-input="summary">${escapeHtml(value.summary || "")}</textarea>
-      <label class="field-label">Technologies</label>
-      <textarea rows="3" data-claim-input="technologies">${escapeHtml((value.technologies || []).join(", "))}</textarea>
-      <label class="field-label">Links</label>
-      <textarea rows="3" data-claim-input="links">${escapeHtml((value.links || []).join("\n"))}</textarea>
-    `;
-  }
-  if (claim.section === "education") {
-    return `
-      <div class="two-col-grid compact-grid">
-        <div>
-          <label class="field-label">Degree</label>
-          <input type="text" data-claim-input="degree" value="${escapeHtml(value.degree || "")}">
-        </div>
-        <div>
-          <label class="field-label">Institution</label>
-          <input type="text" data-claim-input="institution" value="${escapeHtml(value.institution || "")}">
-        </div>
-        <div>
-          <label class="field-label">Field</label>
-          <input type="text" data-claim-input="field_of_study" value="${escapeHtml(value.field_of_study || "")}">
-        </div>
-        <div>
-          <label class="field-label">Start</label>
-          <input type="text" data-claim-input="start_date" value="${escapeHtml(value.start_date || "")}">
-        </div>
-        <div>
-          <label class="field-label">End</label>
-          <input type="text" data-claim-input="end_date" value="${escapeHtml(value.end_date || "")}">
-        </div>
-      </div>
-      <label class="field-label">Summary</label>
-      <textarea rows="4" data-claim-input="summary">${escapeHtml(value.summary || "")}</textarea>
-    `;
-  }
-  if (claim.section === "certifications") {
-    return `
-      <div class="two-col-grid compact-grid">
-        <div>
-          <label class="field-label">Name</label>
-          <input type="text" data-claim-input="name" value="${escapeHtml(value.name || "")}">
-        </div>
-        <div>
-          <label class="field-label">Issuer</label>
-          <input type="text" data-claim-input="issuer" value="${escapeHtml(value.issuer || "")}">
-        </div>
-        <div>
-          <label class="field-label">Issued</label>
-          <input type="text" data-claim-input="start_date" value="${escapeHtml(value.start_date || "")}">
-        </div>
-        <div>
-          <label class="field-label">Credential ID</label>
-          <input type="text" data-claim-input="credential_id" value="${escapeHtml(value.credential_id || "")}">
-        </div>
-      </div>
-      <label class="field-label">Summary</label>
-      <textarea rows="4" data-claim-input="summary">${escapeHtml(value.summary || "")}</textarea>
-    `;
-  }
-  return `
-    <label class="field-label">Value</label>
-    <textarea rows="4" data-claim-input="raw_json">${escapeHtml(JSON.stringify(value, null, 2))}</textarea>
-  `;
-}
-
-function profileStudioBucketChoices() {
-  return [
-    {
-      value: "review",
-      label: "Needs Review",
-      description: "Focus here first. These are the only items that still need a decision or a quick adjustment.",
-      emptyMessage: "Nothing needs review right now.",
-    },
-    {
-      value: "ready",
-      label: "Ready / Accepted",
-      description: "These items already look solid enough to keep. Open this tab only when you want to spot-check them.",
-      emptyMessage: "No stable items yet.",
-    },
-    {
-      value: "rejected",
-      label: "Rejected / Ignored",
-      description: "These items stay out of the preview until you change them again.",
-      emptyMessage: "No rejected or ignored items yet.",
-    },
-  ];
-}
-
-function profileStudioBucketForClaim(claim) {
-  const status = String(claim.status || "").toLowerCase();
-  const action = String(claim.resolver_action || "keep").toLowerCase();
-  const admission = String(claim.admission_status || "").toLowerCase();
-  if (admission === "reject_noise" || admission === "quarantine") {
-    return "rejected";
-  }
-  if (status === "rejected" || status === "duplicate" || action === "duplicate") {
-    return "rejected";
-  }
-  if (admission === "needs_review") {
-    return "review";
-  }
-  if (admission === "admit") {
-    return "ready";
-  }
-  if (status === "accepted" || status === "edited") {
-    return "ready";
-  }
-  if (action === "needs_review" || action === "suggest") {
-    return "review";
-  }
-  if (action === "manual" || action === "auto_correct" || action === "keep" || action === "accepted_suggestion") {
-    return "ready";
-  }
-  return "review";
-}
-
-function buildProfileStudioBuckets(review) {
-  return profileStudioBucketChoices().map((bucket) => {
-    const sections = (review.sections || [])
-      .map((section) => {
-        const claims = (section.claims || []).filter((claim) => profileStudioBucketForClaim(claim) === bucket.value);
-        if (!claims.length) {
-          return null;
-        }
-        return {
-          section: section.section,
-          label: formatSectionLabel(section.section),
-          claims,
-        };
-      })
-      .filter(Boolean);
-
-    return {
-      ...bucket,
-      total: sections.reduce((count, section) => count + section.claims.length, 0),
-      sections,
-    };
-  });
-}
-
-function resolveActiveProfileStudioPane(buckets) {
-  const nonEmptyBuckets = buckets.filter((bucket) => bucket.total > 0);
-  const preferredBucket = buckets.find((bucket) => bucket.value === state.profileStudioBucket);
-  const activeBucket = (
-    (preferredBucket && (preferredBucket.total > 0 || !nonEmptyBuckets.length) ? preferredBucket : null)
-    || buckets.find((bucket) => bucket.value === "review" && bucket.total > 0)
-    || nonEmptyBuckets[0]
-    || buckets[0]
-  );
-  state.profileStudioBucket = activeBucket.value;
-
-  const preferredSection = state.profileStudioSectionByBucket[activeBucket.value];
-  const activeSection = activeBucket.sections.find((section) => section.section === preferredSection) || activeBucket.sections[0] || null;
-  if (activeSection) {
-    state.profileStudioSectionByBucket[activeBucket.value] = activeSection.section;
-  } else {
-    delete state.profileStudioSectionByBucket[activeBucket.value];
-  }
-  return { activeBucket, activeSection };
-}
-
-function structuredClaimCardMarkup(claim) {
-  const selectedSection = claim.suggested_section || claim.section;
-  const rawPreview = structuredClaimValueText(claim.section, claim.field_name, claim.raw_value_json || {});
-  const correctedPreview = structuredClaimValueText(selectedSection, claim.field_name, claim.value_json || {}) || claim.value_text || "Untitled item";
-  const hasCorrectionPreview = rawPreview && correctedPreview && rawPreview !== correctedPreview;
-  const sectionLabel = reviewSectionChoices().find((choice) => choice.value === selectedSection)?.label || formatSectionLabel(selectedSection);
-  const cardClasses = ["studio-claim-card"];
-  if (selectedSection === "skills") {
-    cardClasses.push("studio-skill-card");
-  }
-
-  return `
-    <article class="${cardClasses.join(" ")}" data-claim-id="${claim.id}" data-claim-section="${escapeHtml(claim.section)}">
-      <div class="meta-row">
-        <span class="chip ${structuredClaimStatusClass(claim.status)}">${escapeHtml(claim.status.replaceAll("_", " ").toUpperCase())}</span>
-        <span class="chip ${structuredClaimResolverClass(claim.resolver_action)}">${escapeHtml(String(claim.resolver_action || "keep").replaceAll("_", " ").toUpperCase())}</span>
-        <span class="chip ${structuredClaimResolverClass(claim.admission_status)}">${escapeHtml(String(claim.admission_status || "needs_review").replaceAll("_", " ").toUpperCase())}</span>
-        <span class="meta-text">${confidencePercent(claim.confidence)}% parser</span>
-        <span class="meta-text">${confidencePercent(claim.resolver_confidence || 0)}% resolver</span>
-        <span class="meta-text">${confidencePercent(claim.admission_score || 0)}% admission</span>
-        <span class="meta-text">${escapeHtml(claim.document_filename || "Source document")}</span>
-      </div>
-      <div class="studio-claim-preview">${escapeHtml(correctedPreview)}</div>
-      ${hasCorrectionPreview ? `
-        <div class="studio-claim-diff">
-          <span>${escapeHtml(rawPreview)}</span>
-          <span class="studio-claim-arrow">→</span>
-          <strong>${escapeHtml(correctedPreview)}</strong>
-        </div>
-      ` : ""}
-      ${claim.suggested_section && claim.suggested_section !== claim.section ? `<p class="subtle studio-claim-note">Suggested move: ${escapeHtml(sectionLabel)}</p>` : ""}
-      ${claim.admission_reason ? `<p class="subtle studio-claim-note">Admission: ${escapeHtml(String(claim.admission_reason).replaceAll("_", " "))}</p>` : ""}
-      ${claim.source_text ? `<p class="subtle">${escapeHtml(claim.source_text)}</p>` : ""}
-      ${(claim.resolver_evidence || []).length ? `
-        <div class="meta-row studio-claim-evidence">
-          ${(claim.resolver_evidence || []).map((reason) => `<span class="chip">${escapeHtml(String(reason).replaceAll("_", " "))}</span>`).join("")}
-        </div>
-      ` : ""}
-      <div class="two-col-grid compact-grid">
-        <div>
-          <label class="field-label">Section</label>
-          <select data-claim-section-select>
-            ${reviewSectionChoices().map((choice) => `
-              <option value="${escapeHtml(choice.value)}" ${choice.value === selectedSection ? "selected" : ""}>
-                ${escapeHtml(choice.label)}
-              </option>
-            `).join("")}
-          </select>
-        </div>
-        <div>
-          <label class="field-label">Parser</label>
-          <input type="text" value="${escapeHtml(claim.parser_name)}" disabled>
-        </div>
-      </div>
-      <div class="form-stack compact-form">
-        ${structuredClaimFieldMarkup(claim)}
-      </div>
-      <div class="inline-row wrap">
-        <button class="secondary-button" type="button" data-claim-action="accept">Accept</button>
-        <button class="secondary-button" type="button" data-claim-action="save">Save edit</button>
-        <button class="secondary-button danger-button" type="button" data-claim-action="reject">Reject</button>
-      </div>
-    </article>
-  `;
-}
-
-function renderProfileStudioReview() {
-  if (!elements.profileReviewSections) {
-    return;
-  }
-  const review = state.profileStudioReview;
-  if (!review) {
-    elements.profileReviewSections.innerHTML = '<div class="empty-state">Review data will appear here after upload.</div>';
-    if (elements.profileReviewMeta) {
-      elements.profileReviewMeta.textContent = "Auto-corrected items and review suggestions will appear here after upload.";
-    }
-    return;
-  }
-
-  const buckets = buildProfileStudioBuckets(review);
-  const { activeBucket, activeSection } = resolveActiveProfileStudioPane(buckets);
-  const reviewCount = buckets.find((bucket) => bucket.value === "review")?.total || 0;
-  const readyCount = buckets.find((bucket) => bucket.value === "ready")?.total || 0;
-  const rejectedCount = buckets.find((bucket) => bucket.value === "rejected")?.total || 0;
-  const fusionSummary = review.fusion?.summary || {};
-
-  if (elements.profileReviewMeta) {
-    elements.profileReviewMeta.textContent = `${review.claims_total} extracted items · ${fusionSummary.critical_review_total || 0} critical review items · ${fusionSummary.optional_review_total || reviewCount} optional cleanup items · ${readyCount} ready or accepted · ${rejectedCount} rejected or ignored`;
-  }
-
-  if (!buckets.some((bucket) => bucket.total > 0)) {
-    elements.profileReviewSections.innerHTML = '<div class="empty-state">Upload evidence to generate reviewable profile items.</div>';
-    return;
-  }
-
-  const sectionButtons = activeBucket.sections.length
-    ? activeBucket.sections.map((section) => `
-        <button
-          class="studio-section-tab ${activeSection?.section === section.section ? "is-active" : ""}"
-          type="button"
-          data-studio-section="${escapeHtml(section.section)}"
-        >
-          <span>${escapeHtml(section.label)}</span>
-          <span>${section.claims.length}</span>
-        </button>
-      `).join("")
-    : "";
-
-  const sectionBody = activeSection
-    ? `
-        <section class="studio-section-panel">
-          <div class="studio-pane-header">
-            <div>
-              <span class="eyebrow">${escapeHtml(activeBucket.label)}</span>
-              <h3>${escapeHtml(activeSection.label)}</h3>
-              <p class="subtle">${activeBucket.description}</p>
-            </div>
-            <span class="chip">${activeSection.claims.length} item${activeSection.claims.length === 1 ? "" : "s"}</span>
-          </div>
-          <div class="studio-claim-list ${activeSection.section === "skills" ? "studio-skill-grid" : ""}">
-            ${activeSection.claims.map((claim) => structuredClaimCardMarkup(claim)).join("")}
-          </div>
-        </section>
-      `
-    : `<div class="empty-state">${escapeHtml(activeBucket.emptyMessage)}</div>`;
-
-  elements.profileReviewSections.innerHTML = `
-    <div class="studio-review-shell">
-      <div class="studio-bucket-tabs" role="tablist" aria-label="Profile review groups">
-        ${buckets.map((bucket) => `
-          <button
-            class="studio-bucket-tab ${activeBucket.value === bucket.value ? "is-active" : ""}"
-            type="button"
-            role="tab"
-            aria-selected="${activeBucket.value === bucket.value ? "true" : "false"}"
-            data-studio-bucket="${escapeHtml(bucket.value)}"
-            ${bucket.total ? "" : "disabled"}
-          >
-            <span class="studio-bucket-label">${escapeHtml(bucket.label)}</span>
-            <span class="studio-bucket-copy">${bucket.total} item${bucket.total === 1 ? "" : "s"}</span>
-          </button>
-        `).join("")}
-      </div>
-      <div class="studio-review-workbench">
-        <aside class="studio-section-nav">
-          <div class="studio-section-nav-label">Sections</div>
-          ${sectionButtons || `<div class="empty-inline">${escapeHtml(activeBucket.emptyMessage)}</div>`}
-        </aside>
-        <div class="studio-section-stage">
-          ${sectionBody}
-        </div>
-      </div>
-    </div>
-  `;
-
-  for (const button of elements.profileReviewSections.querySelectorAll("[data-studio-bucket]")) {
-    button.addEventListener("click", () => {
-      state.profileStudioBucket = button.dataset.studioBucket;
-      renderProfileStudioReview();
-    });
-  }
-
-  for (const button of elements.profileReviewSections.querySelectorAll("[data-studio-section]")) {
-    button.addEventListener("click", () => {
-      state.profileStudioSectionByBucket[state.profileStudioBucket] = button.dataset.studioSection;
-      renderProfileStudioReview();
-    });
-  }
-
-  for (const button of elements.profileReviewSections.querySelectorAll("[data-claim-action]")) {
-    button.addEventListener("click", () => submitStructuredProfileClaim(button));
-  }
-}
-
-function renderProfileStudioDiagnostics() {
-  if (!elements.profileDiagnosticsSummary || !elements.profileDiagnosticsSources || !elements.profileDiagnosticsRecords) {
-    return;
-  }
-  const diagnostics = state.profileStudioReview?.diagnostics;
-  if (!diagnostics) {
-    elements.profileDiagnosticsSummary.innerHTML = '<div class="empty-state">Correction diagnostics will appear after review data loads.</div>';
-    elements.profileDiagnosticsSources.innerHTML = '<div class="empty-state">Parser diagnostics will appear after documents are processed.</div>';
-    elements.profileDiagnosticsRecords.innerHTML = '<div class="empty-state">Experience, project, education, and summary frames will appear after review data loads.</div>';
-    return;
-  }
-
-  const correction = diagnostics.correction || {};
-  const actionCounts = correction.action_counts || {};
-  const topReasons = correction.top_reason_codes || {};
-  elements.profileDiagnosticsSummary.innerHTML = `
-    <div class="meta-row">
-      <span class="chip ${correction.embedding_retrieval_enabled ? "success" : "warning"}">${correction.embedding_retrieval_enabled ? "Embeddings On" : "Embeddings Off"}</span>
-      <span class="chip ${correction.llm_arbiter_enabled ? "success" : "warning"}">${correction.llm_arbiter_enabled ? "Arbiter On" : "Arbiter Off"}</span>
-      <span class="chip">${escapeHtml(correction.llm_arbiter_provider || "openai")}</span>
-    </div>
-    <div class="detail-grid">
-      ${fieldPreviewCard("Runtime", [
-        correction.correction_embedding_model ? `Embeddings: ${correction.correction_embedding_provider || "openai"} · ${correction.correction_embedding_model}` : "Embeddings: disabled",
-        correction.llm_arbiter_model ? `Arbiter: ${correction.llm_arbiter_model}` : "Arbiter: disabled",
-        `Cache entries: ${correction.correction_embedding_cache_entries || 0}`,
-      ])}
-      ${fieldPreviewCard("Signals", [
-        `Semantic matches: ${correction.semantic_matches || 0}`,
-        `Arbiter decisions: ${correction.llm_arbiter_decisions || 0}`,
-        `Section suggestions: ${correction.section_suggestions || 0}`,
-      ])}
-      ${fieldPreviewCard("Cache", [
-        `Hits: ${correction.correction_embedding_cache_hits || 0}`,
-        `Misses: ${correction.correction_embedding_cache_misses || 0}`,
-      ])}
-      ${fieldPreviewCard("Resolver actions", Object.entries(actionCounts).map(([name, count]) => `${formatSectionLabel(name)}: ${count}`))}
-    </div>
-    <div class="stack-list compact-stack">
-      ${Object.keys(topReasons).length
-        ? Object.entries(topReasons).map(([reason, count]) => `<div class="detail-line">${escapeHtml(String(reason).replaceAll("_", " "))} · ${escapeHtml(String(count))}</div>`).join("")
-        : '<div class="detail-line">No correction reasons recorded yet.</div>'}
-    </div>
-  `;
-
-  const parserSources = diagnostics.parser_sources || [];
-  elements.profileDiagnosticsSources.innerHTML = parserSources.length
-    ? parserSources.map((source) => `
-        <article class="detail-card">
-          <div class="meta-row">
-            <strong>${escapeHtml(source.filename)}</strong>
-            ${source.validation_status ? `<span class="chip ${statusChipClass(source.validation_status)}">${escapeHtml(String(source.validation_status).replaceAll("_", " ").toUpperCase())}</span>` : ""}
-            ${source.embedding_status ? `<span class="chip">${escapeHtml(source.embedding_status)}</span>` : ""}
-          </div>
-          <div class="detail-line">${escapeHtml(source.parser_backend || "parser")} · ${escapeHtml(source.extraction_mode || "mode")} · score ${escapeHtml(String(source.validation_score ?? "--"))}</div>
-          <div class="detail-line">${escapeHtml(source.document_role || "general_resume")} · ${escapeHtml(source.profile_focus || "master")} · quality ${escapeHtml(String(source.source_quality ?? "--"))}</div>
-          <div class="detail-line">${escapeHtml(String(source.page_count || 0))} pages · ${escapeHtml(String(source.block_count || 0))} blocks · ${escapeHtml(String(source.warning_count || 0))} warnings</div>
-          <div class="tag-row">
-            ${Object.entries(source.section_counts || {}).length
-              ? Object.entries(source.section_counts || {}).map(([section, count]) => `<span class="tag">${escapeHtml(formatSectionLabel(section))} · ${escapeHtml(String(count))}</span>`).join("")
-              : '<span class="empty-inline">No detected sections reported.</span>'}
-          </div>
-        </article>
-      `).join("")
-    : '<div class="empty-state">Parser diagnostics will appear after documents are processed.</div>';
-
-  const recordFrames = diagnostics.record_frames || [];
-  elements.profileDiagnosticsRecords.innerHTML = recordFrames.length
-    ? recordFrames.map((documentFrames) => {
-      const sections = [
-        ["experience_frames", "Experience Frames"],
-        ["project_frames", "Project Frames"],
-        ["education_frames", "Education Frames"],
-        ["summary_frames", "Summary Frames"],
-        ["leadership_frames", "Leadership Frames"],
-        ["freelance_frames", "Freelance Frames"],
-      ];
-      const sectionMarkup = sections
-        .map(([key, label]) => {
-          const frames = documentFrames[key] || [];
-          if (!frames.length) {
-            return "";
-          }
-          return `
-            <div class="frame-group">
-              <div class="detail-line frame-group-title">${escapeHtml(label)} · ${escapeHtml(String(frames.length))}</div>
-              <div class="stack-list compact-stack">
-                ${frames.map((frame) => {
-                  const headline = frame.organization
-                    ? `${frame.organization}${frame.title ? ` · ${frame.title}` : ""}`
-                    : (frame.name || frame.text || frame.degree || "Frame");
-                  const details = [
-                    frame.start_date || frame.end_date ? `Dates: ${[frame.start_date, frame.end_date].filter(Boolean).join(" - ")}` : "",
-                    frame.location ? `Location: ${frame.location}` : "",
-                    frame.summary ? `Summary: ${frame.summary}` : "",
-                    frame.text ? `Text: ${frame.text}` : "",
-                    frame.degree || frame.institution ? `Education: ${[frame.degree, frame.institution].filter(Boolean).join(" · ")}` : "",
-                    Array.isArray(frame.highlights) && frame.highlights.length ? `Bullets: ${frame.highlights.length}` : "",
-                    Array.isArray(frame.technologies) && frame.technologies.length ? `Tech: ${frame.technologies.slice(0, 6).join(", ")}` : "",
-                    Array.isArray(frame.source_block_ids) && frame.source_block_ids.length ? `Blocks: ${frame.source_block_ids.slice(0, 4).join(", ")}` : "",
-                  ].filter(Boolean);
-                  return `
-                    <article class="detail-card frame-record">
-                      <div class="meta-row">
-                        <strong>${escapeHtml(headline)}</strong>
-                        <span class="chip">${confidencePercent(frame.confidence || 0)}%</span>
-                      </div>
-                      ${details.map((detail) => `<div class="detail-line">${escapeHtml(detail)}</div>`).join("")}
-                    </article>
-                  `;
-                }).join("")}
-              </div>
-            </div>
-          `;
-        })
-        .filter(Boolean)
-        .join("");
-
-      return `
-        <article class="detail-card">
-          <div class="meta-row">
-            <strong>${escapeHtml(documentFrames.filename || "Document")}</strong>
-          </div>
-          ${sectionMarkup || '<div class="empty-state">No assembled frames were generated for this document.</div>'}
-        </article>
-      `;
-    }).join("")
-    : '<div class="empty-state">Experience, project, education, and summary frames will appear after review data loads.</div>';
-}
 
 function renderProfileEditor() {
   if (!elements.profileOverviewForm || !state.profileOverview) {
@@ -2807,250 +2053,12 @@ function renderProfileEditor() {
   }
 }
 
-function readStructuredClaimValue(card, section) {
-  const read = (name) => card.querySelector(`[data-claim-input="${name}"]`)?.value.trim() || "";
-  if (section === "identity") {
-    return { value: read("value") };
-  }
-  if (section === "skills") {
-    return { name: read("name") };
-  }
-  if (section === "public_profiles") {
-    return { label: read("label"), url: read("url") };
-  }
-  if (section === "work_experience") {
-    return {
-      title: read("title"),
-      organization: read("organization"),
-      location: read("location"),
-      start_date: read("start_date"),
-      end_date: read("end_date"),
-      summary: read("summary"),
-      highlights: read("highlights").split("\n").map((item) => item.trim()).filter(Boolean),
-      technologies: [],
-      links: [],
-      source_document_ids: [],
-    };
-  }
-  if (section === "projects") {
-    return {
-      name: read("name"),
-      summary: read("summary"),
-      technologies: read("technologies").split(",").map((item) => item.trim()).filter(Boolean),
-      links: read("links").split("\n").map((item) => item.trim()).filter(Boolean),
-      highlights: [],
-      source_document_ids: [],
-    };
-  }
-  if (section === "education") {
-    return {
-      degree: read("degree"),
-      institution: read("institution"),
-      field_of_study: read("field_of_study"),
-      start_date: read("start_date"),
-      end_date: read("end_date"),
-      summary: read("summary"),
-      technologies: [],
-      highlights: [],
-      links: [],
-      source_document_ids: [],
-    };
-  }
-  if (section === "certifications") {
-    return {
-      name: read("name"),
-      issuer: read("issuer"),
-      start_date: read("start_date"),
-      credential_id: read("credential_id"),
-      summary: read("summary"),
-      technologies: [],
-      highlights: [],
-      links: [],
-      source_document_ids: [],
-    };
-  }
-  const rawJson = read("raw_json");
-  try {
-    return rawJson ? JSON.parse(rawJson) : {};
-  } catch {
-    return {};
-  }
-}
-
-function convertStructuredClaimValue(value, fromSection, toSection) {
-  if (fromSection === toSection) {
-    return value;
-  }
-  const primaryText = value.value || value.name || value.title || value.degree || value.organization || value.institution || value.summary || "";
-  if (toSection === "identity") {
-    return { value: primaryText };
-  }
-  if (toSection === "skills") {
-    return { name: primaryText };
-  }
-  if (toSection === "public_profiles") {
-    return {
-      label: value.label || "Link",
-      url: value.url || (value.links || [])[0] || "",
-    };
-  }
-  if (toSection === "projects") {
-    return {
-      name: value.name || value.title || primaryText,
-      summary: value.summary || "",
-      technologies: value.technologies || [],
-      links: value.links || [],
-      highlights: value.highlights || [],
-      source_document_ids: value.source_document_ids || [],
-    };
-  }
-  if (toSection === "work_experience") {
-    return {
-      title: value.title || value.name || primaryText,
-      organization: value.organization || value.issuer || "",
-      location: value.location || "",
-      start_date: value.start_date || "",
-      end_date: value.end_date || "",
-      summary: value.summary || "",
-      highlights: value.highlights || [],
-      technologies: value.technologies || [],
-      links: value.links || [],
-      source_document_ids: value.source_document_ids || [],
-    };
-  }
-  if (toSection === "education") {
-    return {
-      degree: value.degree || value.title || value.name || primaryText,
-      institution: value.institution || value.organization || value.issuer || "",
-      field_of_study: value.field_of_study || "",
-      start_date: value.start_date || "",
-      end_date: value.end_date || "",
-      summary: value.summary || "",
-      technologies: [],
-      highlights: [],
-      links: value.links || [],
-      source_document_ids: value.source_document_ids || [],
-    };
-  }
-  if (toSection === "certifications") {
-    return {
-      name: value.name || value.degree || primaryText,
-      issuer: value.issuer || value.organization || value.institution || "",
-      start_date: value.start_date || "",
-      credential_id: value.credential_id || "",
-      summary: value.summary || "",
-      technologies: [],
-      highlights: [],
-      links: value.links || [],
-      source_document_ids: value.source_document_ids || [],
-    };
-  }
-  return value;
-}
-
-async function submitStructuredProfileClaim(button) {
-  const card = button.closest("[data-claim-id]");
-  if (!card) {
-    return;
-  }
-  const claimId = card.dataset.claimId;
-  const originalSection = card.dataset.claimSection;
-  const nextSection = card.querySelector("[data-claim-section-select]")?.value || card.dataset.claimSection;
-  const action = button.dataset.claimAction;
-  const payload = { section: nextSection };
-  if (action === "reject") {
-    payload.status = "rejected";
-  } else {
-    const originalValue = readStructuredClaimValue(card, originalSection);
-    payload.value_json = convertStructuredClaimValue(originalValue, originalSection, nextSection);
-    payload.status = action === "accept" ? "accepted" : "edited";
-  }
-
-  try {
-    setLoading(button, true, action === "accept" ? "Accepting..." : action === "reject" ? "Rejecting..." : "Saving...");
-    await apiFetch(withProfileQuery(`/profile/studio/claims/${claimId}`), {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
-    await Promise.all([loadProfileStudioReview(), loadProfileOverview(), loadSummary()]);
-    showToast(action === "reject" ? "Rejected extracted item." : action === "accept" ? "Accepted extracted item." : "Saved review edit.");
-  } catch (error) {
-    showToast(error.message, "error");
-  } finally {
-    setLoading(button, false, button.dataset.originalLabel || button.textContent);
-  }
-}
-
-async function acceptAllProfileStudioClaims() {
-  try {
-    setLoading(elements.acceptAllReviewButton, true, "Accepting...");
-    await apiFetch(withProfileQuery("/profile/studio/claims/accept-all"), { method: "POST" });
-    await Promise.all([loadProfileStudioReview(), loadProfileOverview(), loadSummary()]);
-    showToast("Accepted all extracted profile items.");
-  } catch (error) {
-    showToast(error.message, "error");
-  } finally {
-    setLoading(elements.acceptAllReviewButton, false, "Accept All");
-  }
-}
-
-async function saveCanonicalProfile() {
-  try {
-    setLoading(elements.saveCanonicalButton, true, "Saving...");
-    state.profileOverview = await apiFetch(withProfileQuery("/profile/studio/save", { view: state.profileView }), { method: "POST" });
-    renderCurrentProfileMeta();
-    renderProfileOverviewSnapshot();
-    renderProfileViewControl();
-    await Promise.all([loadProfileStudioReview(), loadSummary()]);
-    showToast("Saved canonical profile memory.");
-  } catch (error) {
-    showToast(error.message, "error");
-  } finally {
-    setLoading(elements.saveCanonicalButton, false, "Save Profile");
-  }
-}
-
-async function resetCanonicalProfile() {
-  const confirmed = window.confirm("Reset the saved canonical profile and go back to the latest extracted preview?");
-  if (!confirmed) {
-    return;
-  }
-
-  try {
-    setLoading(elements.resetCanonicalButton, true, "Resetting...");
-    state.profileOverview = await apiFetch(withProfileQuery("/profile/studio/canonical", { view: state.profileView }), { method: "DELETE" });
-    renderCurrentProfileMeta();
-    renderProfileOverviewSnapshot();
-    renderProfileViewControl();
-    await Promise.all([loadProfileStudioReview(), loadSummary()]);
-    showToast("Returned to the extracted profile preview.");
-  } catch (error) {
-    showToast(error.message, "error");
-  } finally {
-    setLoading(elements.resetCanonicalButton, false, "Reset to Extracted");
-  }
-}
-
 async function loadProfileOverview() {
   state.profileOverview = await apiFetch(withProfileQuery("/profile/overview", { view: state.profileView }));
   renderCurrentProfileMeta();
   renderProfileOverviewSnapshot();
   renderProfileViewControl();
   renderProfileEditor();
-}
-
-async function loadProfileStudioReview() {
-  if (!elements.profileReviewSections) {
-    return;
-  }
-  state.profileStudioReview = await apiFetch(withProfileQuery("/profile/studio/review", { view: state.profileView }));
-  state.profileStudioPreview = state.profileStudioReview.review_preview_profile || null;
-  state.profileFusion = state.profileStudioReview.fusion || null;
-  renderProfileStudioReview();
-  renderProfileFusion();
-  renderProfileStudioDiagnostics();
-  renderProfileOverviewSnapshot();
-  renderProfileViewControl();
 }
 
 async function loadAuthSession() {
@@ -3190,14 +2198,6 @@ async function loadProfileGraph() {
   renderProfileGraph();
 }
 
-async function loadWiki() {
-  state.wiki = await apiFetch(withProfileQuery("/profile/wiki"));
-  if (!state.wiki.articles.some((article) => article.slug === state.currentArticleSlug)) {
-    state.currentArticleSlug = state.wiki.articles[0]?.slug || "profile";
-  }
-  renderWiki();
-}
-
 async function refreshEvidencePage() {
   await Promise.all([loadResumeParsers(), loadRuntimeHealth(), loadSummary(), loadDocuments(), loadProfileOverview()]);
   renderSelectedDocumentSummary();
@@ -3206,16 +2206,6 @@ async function refreshEvidencePage() {
 async function refreshJobPage() {
   await Promise.all([loadSummary(), loadProfileOverview(), loadApprovedClaims()]);
   analyzeJobDescription();
-}
-
-async function refreshWikiPage() {
-  await Promise.all([loadSummary(), loadProfileOverview(), loadWiki()]);
-}
-
-async function refreshProfilePage() {
-  await loadSummary();
-  await loadProfileOverview();
-  await loadProfileStudioReview();
 }
 
 async function refreshBenchmarksPage() {
@@ -3294,12 +2284,13 @@ async function createProfileSubmit(event) {
     if (!state.selectedProfileId) {
       rememberSelectedProfile(createdProfile.id);
     }
+    hideCreateProfileModal();
     await loadProfiles();
     showToast(`Created profile ${createdProfile.name}.`);
   } catch (error) {
     showToast(error.message, "error");
   } finally {
-    setLoading(elements.createProfileButton, false, "Create profile");
+    setLoading(elements.createProfileButton, false, "Create");
   }
 }
 
@@ -3390,8 +2381,10 @@ async function uploadEvidence(event) {
   formData.append("profile_id", profile.id);
   formData.append("parser_backend", ensureSelectedParserBackend());
 
+  let _uploadSuccess = false;
   try {
     setLoading(elements.uploadButton, true, files.length > 1 ? "Uploading files..." : "Uploading...");
+    startUploadAnimation();
     const response = await apiFetch("/documents/upload-batch", {
       method: "POST",
       body: formData,
@@ -3435,11 +2428,13 @@ async function uploadEvidence(event) {
       const firstFailure = failures[0];
       showToast(`${successCopy} ${failures.length} failed, starting with ${firstFailure.filename}: ${firstFailure.detail}.${warningCopy}`, "error");
     } else {
+      _uploadSuccess = true;
       showToast(`${successCopy} The profile was updated automatically.${warningCopy}`);
     }
   } catch (error) {
     showToast(error.message, "error");
   } finally {
+    stopUploadAnimation(_uploadSuccess);
     setLoading(elements.uploadButton, false, "Upload evidence");
   }
 }
@@ -3505,8 +2500,10 @@ async function deleteSelectedDocument() {
     return;
   }
 
+  let _deleteSuccess = false;
   try {
     setLoading(elements.deleteDocumentButton, true, "Deleting...");
+    startUploadAnimation();
     await apiFetch(withProfileQuery(`/documents/${document.id}`), { method: "DELETE" });
     delete state.parserComparisons[document.id];
     if (state.selectedDocumentId === document.id) {
@@ -3516,10 +2513,12 @@ async function deleteSelectedDocument() {
     state.lastExtractionMode = null;
     state.lastWarnings = [];
     await refreshEvidencePage();
+    _deleteSuccess = true;
     showToast(`Deleted evidence ${document.filename}.`);
   } catch (error) {
     showToast(error.message, "error");
   } finally {
+    stopUploadAnimation(_deleteSuccess);
     setLoading(elements.deleteDocumentButton, false, "Delete Evidence");
   }
 }
@@ -3531,8 +2530,10 @@ async function reparseSelectedDocument() {
     return;
   }
 
+  let _reparseSuccess = false;
   try {
     setLoading(elements.reparseDocumentButton, true, "Re-running...");
+    startUploadAnimation();
     const response = await apiFetch(withProfileQuery(`/documents/${document.id}/reparse`, {
       parser_backend: ensureSelectedParserBackend(),
     }), {
@@ -3547,10 +2548,12 @@ async function reparseSelectedDocument() {
         : "Parser completed, but only light profile signals were found.";
       elements.uploadStatus.textContent = `${detected} The current profile was refreshed automatically.`;
     }
+    _reparseSuccess = true;
     showToast(`Re-ran the parser for ${response.document.filename}.`);
   } catch (error) {
     showToast(error.message, "error");
   } finally {
+    stopUploadAnimation(_reparseSuccess);
     setLoading(elements.reparseDocumentButton, false, "Re-run Parser");
   }
 }
@@ -3748,32 +2751,13 @@ function bindJobPage() {
   }
 }
 
-function bindWikiPage() {
-  bindSharedWorkspaceActions();
-  elements.wikiSearchInput?.addEventListener("input", () => {
-    state.wikiQuery = elements.wikiSearchInput.value;
-    renderWikiSidebar();
-  });
-}
-
 function bindProfileSelectorPage() {
   elements.logoutButton?.addEventListener("click", logout);
   elements.profileForm?.addEventListener("submit", createProfileSubmit);
   elements.profileUpdateForm?.addEventListener("submit", updateManagedProfile);
   elements.deleteProfileButton?.addEventListener("click", deleteManagedProfile);
-}
-
-function bindProfilePage() {
-  bindSharedWorkspaceActions();
-  elements.profileOverviewForm?.addEventListener("submit", saveProfileOverview);
-  elements.resetProfileOverviewButton?.addEventListener("click", resetProfileOverviewEdits);
-  elements.acceptAllReviewButton?.addEventListener("click", acceptAllProfileStudioClaims);
-  elements.saveCanonicalButton?.addEventListener("click", saveCanonicalProfile);
-  elements.resetCanonicalButton?.addEventListener("click", resetCanonicalProfile);
-  elements.profileViewSelect?.addEventListener("change", async () => {
-    rememberSelectedProfileView(elements.profileViewSelect.value);
-    await Promise.all([loadProfileStudioReview(), loadProfileOverview()]);
-  });
+  document.getElementById("pmodal-close-btn")?.addEventListener("click", hideCreateProfileModal);
+  document.getElementById("pmodal-backdrop")?.addEventListener("click", hideCreateProfileModal);
 }
 
 function bindBenchmarksPage() {
@@ -3871,24 +2855,6 @@ async function initJobPage() {
   await refreshJobPage();
 }
 
-async function initProfilePage() {
-  const authenticated = await ensureAuthenticated();
-  if (!authenticated || !ensureSelectedProfileOrRedirect()) {
-    return;
-  }
-  bindProfilePage();
-  await refreshProfilePage();
-}
-
-async function initWikiPage() {
-  const authenticated = await ensureAuthenticated();
-  if (!authenticated || !ensureSelectedProfileOrRedirect()) {
-    return;
-  }
-  bindWikiPage();
-  await refreshWikiPage();
-}
-
 async function initBenchmarksPage() {
   const authenticated = await ensureAuthenticated();
   if (!authenticated) {
@@ -3898,7 +2864,256 @@ async function initBenchmarksPage() {
   await refreshBenchmarksPage();
 }
 
+// ── Resume Page ──────────────────────────────────────────────
+
+async function loadResumeContent() {
+  try {
+    const data = await apiFetch(withProfileQuery("/resume/content"));
+    const resumeEl = document.getElementById("resume-content");
+    const cvEl = document.getElementById("cv-content");
+    const resumeStatus = document.getElementById("resume-status");
+    const cvStatus = document.getElementById("cv-status");
+    if (resumeEl && data.resume) {
+      resumeEl.value = data.resume;
+      const copyBtn = document.getElementById("copy-resume-button");
+      const dlBtn = document.getElementById("download-resume-button");
+      if (copyBtn) copyBtn.disabled = false;
+      if (dlBtn) dlBtn.disabled = false;
+      if (resumeStatus) resumeStatus.textContent = "Auto-generated from your profile. Edit freely.";
+    }
+    if (cvEl && data.cv) {
+      cvEl.value = data.cv;
+      const copyBtn = document.getElementById("copy-cv-button");
+      const dlBtn = document.getElementById("download-cv-button");
+      if (copyBtn) copyBtn.disabled = false;
+      if (dlBtn) dlBtn.disabled = false;
+      if (cvStatus) cvStatus.textContent = "Auto-generated from your profile. Edit freely.";
+    }
+    if (typeof gsap !== "undefined") {
+      const panes = document.querySelectorAll("#resume-pane, #cv-pane");
+      gsap.from(panes, { opacity: 0, y: 10, duration: 0.35, ease: "power2.out", clearProps: "all" });
+    }
+  } catch {
+    // silent — user can generate manually
+  }
+}
+
+async function generateResumeContent() {
+  const btn = document.getElementById("generate-resume-button");
+  try {
+    if (btn) { btn.dataset.originalLabel = btn.textContent; btn.textContent = "Generating…"; btn.disabled = true; }
+    const data = await apiFetch(withProfileQuery("/resume/generate"), { method: "POST" });
+    const resumeEl = document.getElementById("resume-content");
+    const cvEl = document.getElementById("cv-content");
+    const resumeStatus = document.getElementById("resume-status");
+    const cvStatus = document.getElementById("cv-status");
+    if (resumeEl && data.resume) {
+      resumeEl.value = data.resume;
+      document.getElementById("copy-resume-button")?.removeAttribute("disabled");
+      document.getElementById("download-resume-button")?.removeAttribute("disabled");
+      if (resumeStatus) resumeStatus.textContent = "Generated successfully. Edit freely.";
+    }
+    if (cvEl && data.cv) {
+      cvEl.value = data.cv;
+      document.getElementById("copy-cv-button")?.removeAttribute("disabled");
+      document.getElementById("download-cv-button")?.removeAttribute("disabled");
+      if (cvStatus) cvStatus.textContent = "Generated successfully. Edit freely.";
+    }
+    showToast("Resume and CV generated from your profile.");
+  } catch (error) {
+    showToast(error.message || "Generation failed.", "error");
+  } finally {
+    if (btn) { btn.textContent = btn.dataset.originalLabel || "Generate Resume"; btn.disabled = false; }
+  }
+}
+
+function bindResumePage() {
+  document.getElementById("generate-resume-button")?.addEventListener("click", generateResumeContent);
+  document.getElementById("sync-resume-button")?.addEventListener("click", generateResumeContent);
+  document.getElementById("generate-cv-button")?.addEventListener("click", generateResumeContent);
+  document.getElementById("sync-cv-button")?.addEventListener("click", generateResumeContent);
+}
+
+async function refreshResumePage() {
+  await Promise.all([loadSummary(), loadProfileOverview()]);
+  await loadResumeContent();
+}
+
+async function initResumePage() {
+  const authenticated = await ensureAuthenticated();
+  if (!authenticated || !ensureSelectedProfileOrRedirect()) {
+    return;
+  }
+  bindResumePage();
+  await refreshResumePage();
+}
+
+// ── Logo processing animation ────────────────────────────────
+
+let _logoAnimActive = false;
+let _logoGlowTween = null;
+let _logoPulseInterval = null;
+let _animOverlay = null;
+
+function _getOrCreateOverlay() {
+  if (_animOverlay && document.body.contains(_animOverlay)) return _animOverlay;
+  const overlay = document.createElement("div");
+  overlay.className = "upload-anim-overlay";
+  overlay.innerHTML = '<div class="upload-anim-positioner"><div class="upload-anim-core"></div></div>';
+  document.body.appendChild(overlay);
+  _animOverlay = overlay;
+  return overlay;
+}
+
+function _getAnimPositioner() {
+  return _animOverlay?.querySelector(".upload-anim-positioner");
+}
+
+function _getAnimCore() {
+  return _animOverlay?.querySelector(".upload-anim-core");
+}
+
+function _addOrbitDot(positioner, speed, initialAngle) {
+  const wrap = document.createElement("div");
+  wrap.className = "anim-orbit-wrap";
+  positioner.insertBefore(wrap, positioner.firstChild);
+
+  const dot = document.createElement("div");
+  dot.className = "anim-orbit-dot";
+  wrap.appendChild(dot);
+
+  // Dot sits at top-center of a 160×160 wrap; positioner center is at (80,80).
+  // Dot top-left is at (75,0), so transformOrigin "5px 80px" pivots exactly
+  // at the positioner center → 75px visual orbit radius.
+  gsap.set(dot, { rotation: initialAngle, transformOrigin: "5px 80px" });
+  gsap.to(dot, {
+    rotation: initialAngle + 360,
+    transformOrigin: "5px 80px",
+    duration: speed,
+    repeat: -1,
+    ease: "none",
+  });
+
+  return wrap;
+}
+
+function _firePulseRing(positioner) {
+  const ring = document.createElement("div");
+  ring.className = "anim-pulse-ring";
+  positioner.insertBefore(ring, positioner.firstChild);
+
+  gsap.fromTo(
+    ring,
+    { scale: 0.9, opacity: 0.75 },
+    {
+      scale: 2.8,
+      opacity: 0,
+      duration: 1.4,
+      ease: "power2.out",
+      onComplete: () => ring.remove(),
+    }
+  );
+}
+
+function startUploadAnimation() {
+  if (typeof gsap === "undefined" || _logoAnimActive) return;
+  _logoAnimActive = true;
+
+  const overlay = _getOrCreateOverlay();
+  const positioner = _getAnimPositioner();
+  const core = _getAnimCore();
+  if (!positioner || !core) return;
+
+  gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+
+  _addOrbitDot(positioner, 1.6, 0);
+  _addOrbitDot(positioner, 2.4, 180);
+
+  _logoGlowTween = gsap.to(core, {
+    boxShadow: "0 0 0 10px rgba(41,151,255,0.2), 0 0 40px rgba(41,151,255,0.45)",
+    duration: 0.95,
+    repeat: -1,
+    yoyo: true,
+    ease: "sine.inOut",
+  });
+
+  _firePulseRing(positioner);
+  _logoPulseInterval = setInterval(() => {
+    if (_logoAnimActive) _firePulseRing(positioner);
+  }, 1500);
+}
+
+function stopUploadAnimation(success = true) {
+  if (typeof gsap === "undefined") return;
+  _logoAnimActive = false;
+
+  clearInterval(_logoPulseInterval);
+  _logoPulseInterval = null;
+
+  const overlay = _animOverlay;
+  const positioner = _getAnimPositioner();
+  const core = _getAnimCore();
+
+  positioner?.querySelectorAll(".anim-orbit-wrap").forEach((el) => {
+    gsap.to(el, { opacity: 0, duration: 0.2, onComplete: () => el.remove() });
+  });
+
+  if (_logoGlowTween) {
+    _logoGlowTween.kill();
+    _logoGlowTween = null;
+  }
+
+  if (core) {
+    const flashColor = success ? "var(--success)" : "var(--danger)";
+    const glowRgb = success ? "48,209,88" : "255,69,58";
+    gsap.to(core, {
+      background: flashColor,
+      boxShadow: `0 0 0 14px rgba(${glowRgb},0.25), 0 0 48px rgba(${glowRgb},0.4)`,
+      duration: 0.2,
+      ease: "power2.in",
+      onComplete: () => {
+        gsap.to(core, {
+          background: "var(--accent)",
+          boxShadow: "none",
+          duration: 0.5,
+          ease: "power2.out",
+          onComplete: () => {
+            if (overlay) {
+              gsap.to(overlay, {
+                opacity: 0,
+                duration: 0.4,
+                delay: 0.15,
+                onComplete: () => {
+                  overlay.remove();
+                  _animOverlay = null;
+                },
+              });
+            }
+          },
+        });
+      },
+    });
+  } else if (overlay) {
+    gsap.to(overlay, {
+      opacity: 0,
+      duration: 0.4,
+      onComplete: () => { overlay.remove(); _animOverlay = null; },
+    });
+  }
+}
+
+// ── Page fade-in helper ──────────────────────────────────────
+
+function _animatePageIn() {
+  if (typeof gsap === "undefined") return;
+  const shell = document.querySelector(".app-shell, .auth-shell, .profiles-page");
+  if (shell) {
+    gsap.from(shell, { opacity: 0, duration: 0.4, ease: "power2.out", clearProps: "all" });
+  }
+}
+
 async function init() {
+  _animatePageIn();
   try {
     if (page === "login") {
       await initLoginPage();
@@ -3912,16 +3127,12 @@ async function init() {
       await initProfileSelectorPage();
       return;
     }
+    if (page === "resume") {
+      await initResumePage();
+      return;
+    }
     if (page === "job") {
       await initJobPage();
-      return;
-    }
-    if (page === "profile") {
-      await initProfilePage();
-      return;
-    }
-    if (page === "wiki") {
-      await initWikiPage();
       return;
     }
     if (page === "benchmarks") {

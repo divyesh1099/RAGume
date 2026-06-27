@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RAGume · Resume &amp; CV</title>
+    <meta name="description" content="Generate and edit your resume and CV from your RAGume profile.">
+    <link rel="stylesheet" href="/assets/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  </head>
+  <body data-page="resume">
+    <div class="app-shell">
+      <nav class="sidebar" aria-label="Main navigation">
+        <a class="brand" href="/">
+          <span class="brand-mark">RG</span>
+          <span class="brand-name">RAGume</span>
+        </a>
+
+        <div class="sidenav">
+          <a class="sidenav-link" href="/">Evidence</a>
+          <a class="sidenav-link is-active" href="/resume">Resume &amp; CV</a>
+          <a class="sidenav-link" href="/job">Job Match</a>
+          <span class="sidenav-sep"></span>
+          <a class="sidenav-link sidenav-dev" href="/benchmarks">Benchmarks</a>
+        </div>
+
+        <div class="sidebar-foot">
+          <div class="sidebar-profile-chip">
+            <div class="sidebar-profile-name" id="current-profile-name">Loading</div>
+            <div class="sidebar-profile-sub" id="current-profile-meta">—</div>
+          </div>
+          <div class="sidebar-actions">
+            <button class="sidebar-btn" type="button" id="switch-profile-button">Switch</button>
+            <button class="sidebar-btn sidebar-signout" type="button" id="logout-button">Sign Out</button>
+          </div>
+          <span class="sidebar-user-pill" id="auth-user-pill">Account</span>
+        </div>
+      </nav>
+
+      <main class="main-content">
+        <div class="page-header">
+          <h1>Resume &amp; CV</h1>
+          <p>Generate tailored documents from your profile. Edit, sync, and download when ready.</p>
+        </div>
+
+        <div class="resume-tab-bar" role="tablist">
+          <button class="resume-tab is-active" role="tab" data-tab="resume" id="tab-resume">Resume</button>
+          <button class="resume-tab" role="tab" data-tab="cv" id="tab-cv">CV</button>
+        </div>
+
+        <!-- Resume pane -->
+        <div id="resume-pane">
+          <article class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">Document</span>
+                <h2>Resume</h2>
+              </div>
+              <div class="inline-row wrap">
+                <button class="secondary-button" type="button" id="sync-resume-button">Sync with Profile</button>
+                <button class="primary-button" type="button" id="generate-resume-button">Generate Resume</button>
+              </div>
+            </div>
+            <p class="subtle" id="resume-status">Generate a resume from your current profile to start editing.</p>
+            <div class="form-stack">
+              <textarea id="resume-content" rows="28"
+                placeholder="Your generated resume will appear here. Click Generate Resume to create one from your current profile."></textarea>
+              <div class="inline-row wrap">
+                <button class="secondary-button" type="button" id="download-resume-button" disabled>Download PDF</button>
+                <button class="secondary-button" type="button" id="copy-resume-button" disabled>Copy to Clipboard</button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- CV pane (hidden by default) -->
+        <div id="cv-pane" style="display:none">
+          <article class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">Document</span>
+                <h2>CV</h2>
+              </div>
+              <div class="inline-row wrap">
+                <button class="secondary-button" type="button" id="sync-cv-button">Sync with Profile</button>
+                <button class="primary-button" type="button" id="generate-cv-button">Generate CV</button>
+              </div>
+            </div>
+            <p class="subtle" id="cv-status">Generate a CV from your current profile to start editing.</p>
+            <div class="form-stack">
+              <textarea id="cv-content" rows="28"
+                placeholder="Your generated CV will appear here. Click Generate CV to create one from your current profile."></textarea>
+              <div class="inline-row wrap">
+                <button class="secondary-button" type="button" id="download-cv-button" disabled>Download PDF</button>
+                <button class="secondary-button" type="button" id="copy-cv-button" disabled>Copy to Clipboard</button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <article class="surface">
+          <div class="surface-header">
+            <div>
+              <span class="eyebrow">Overleaf template</span>
+              <h2>LaTeX export</h2>
+            </div>
+          </div>
+          <p class="subtle">Paste your profile data into an Overleaf template to get a professionally typeset PDF. Generation from a custom template is coming soon.</p>
+          <div class="inline-row wrap" style="margin-top:4px">
+            <button class="secondary-button" type="button" id="export-overleaf-button" disabled>Export for Overleaf</button>
+          </div>
+        </article>
+      </main>
+    </div>
+
+    <div class="toast-region" id="toast-region" aria-live="polite"></div>
+    <script type="module" src="/assets/app.js"></script>
+    <script>
+      // Tab switching — minimal inline JS, no framework dependency
+      document.querySelectorAll('.resume-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.resume-tab').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          const tab = btn.dataset.tab;
+          document.getElementById('resume-pane').style.display = tab === 'resume' ? '' : 'none';
+          document.getElementById('cv-pane').style.display = tab === 'cv' ? '' : 'none';
+        });
+      });
+
+      // Copy to clipboard
+      document.getElementById('copy-resume-button').addEventListener('click', () => {
+        const text = document.getElementById('resume-content').value;
+        if (text) navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard'));
+      });
+
+      document.getElementById('copy-cv-button').addEventListener('click', () => {
+        const text = document.getElementById('cv-content').value;
+        if (text) navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard'));
+      });
+
+      // Enable copy buttons when content is present
+      ['resume-content', 'cv-content'].forEach(id => {
+        const area = document.getElementById(id);
+        const btn = document.getElementById(id === 'resume-content' ? 'copy-resume-button' : 'copy-cv-button');
+        area.addEventListener('input', () => { btn.disabled = !area.value.trim(); });
+      });
+    </script>
+  </body>
+</html>

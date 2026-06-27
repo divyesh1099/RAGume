@@ -3,104 +3,59 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Resume Workspace · Select Profile</title>
-    <meta name="description" content="Choose or manage a profile before entering Resume Workspace.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+    <title>RAGume · Profiles</title>
+    <meta name="description" content="Choose or create a profile before entering RAGume.">
     <link rel="stylesheet" href="/assets/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   </head>
   <body data-page="profile-select">
-    <div class="selector-frame">
-      <header class="topbar selector-topbar">
-        <a class="brand" href="/profiles/select">
-          <span class="brand-mark">RR</span>
-          <span class="brand-copy">
-            <strong>Resume Workspace</strong>
-            <span>Profile workspace</span>
-          </span>
+    <div class="profiles-page">
+      <header class="profiles-header">
+        <a class="auth-brand" href="/">
+          <span class="auth-brand-mark">RG</span>
+          <span class="auth-brand-name">RAGume</span>
         </a>
-        <div class="topbar-actions">
+        <div class="inline-row">
           <span class="identity-pill" id="auth-user-pill">Account</span>
           <button class="secondary-button" type="button" id="logout-button">Sign Out</button>
         </div>
       </header>
 
-      <main class="selector-main">
-        <section class="selector-hero">
-          <span class="eyebrow">Choose profile</span>
-          <h1>Pick who’s working today</h1>
-          <p>Select a profile to enter the workspace. Each profile keeps its own evidence, structured memory, wiki, job descriptions, and future exports.</p>
-        </section>
-
-        <section class="surface selector-surface">
-          <div class="surface-header">
-            <div>
-              <span class="eyebrow">Profiles</span>
-              <h2>Your profile library</h2>
-            </div>
-          </div>
-          <div class="profile-selector-grid" id="profile-selector-grid">
-            <div class="empty-state">Profiles will appear here.</div>
-          </div>
-        </section>
-
-        <div class="selector-layout">
-          <section class="surface">
-            <div class="surface-header compact">
-              <div>
-                <span class="eyebrow">Create</span>
-                <h2>New profile</h2>
-              </div>
-            </div>
-            <form class="form-stack" id="profile-form">
-              <label class="field-label" for="profile-name-input">Profile name</label>
-              <input id="profile-name-input" type="text" maxlength="120" placeholder="Document AI Engineer">
-              <button class="primary-button" type="submit" id="create-profile-button">Create profile</button>
-            </form>
-          </section>
-
-          <section class="surface">
-            <div class="surface-header compact">
-              <div>
-                <span class="eyebrow">Manage</span>
-                <h2>Edit selected profile</h2>
-              </div>
-            </div>
-            <p class="subtle" id="profile-select-meta">Select a profile card to rename or delete it.</p>
-            <form class="form-stack" id="profile-update-form">
-              <label class="field-label" for="profile-edit-input">Profile name</label>
-              <input id="profile-edit-input" type="text" maxlength="120" placeholder="Selected profile name" disabled>
-              <div class="inline-row wrap">
-                <button class="primary-button" type="submit" id="save-profile-button" disabled>Save changes</button>
-                <button class="secondary-button danger-button" type="button" id="delete-profile-button" disabled>Delete profile</button>
-              </div>
-            </form>
-          </section>
-
-          <section class="surface">
-            <div class="surface-header compact">
-              <div>
-                <span class="eyebrow">Roadmap</span>
-                <h2>Profile-scoped outputs</h2>
-              </div>
-            </div>
-            <div class="tag-row">
-              <span class="tag">Evidence</span>
-              <span class="tag">Job descriptions</span>
-              <span class="tag">Wiki</span>
-              <span class="tag muted">Resume export</span>
-              <span class="tag muted">Cover letters</span>
-              <span class="tag muted">LinkedIn messages</span>
-              <span class="tag muted">Salary calculator</span>
-              <span class="tag muted">Chat</span>
-              <span class="tag muted">AI headshots</span>
-              <span class="tag muted">3D profile model</span>
-            </div>
-            <p class="subtle">Later, photo and video evidence can also power professional photo generation and a source-backed 3D face or full-body profile model.</p>
-          </section>
+      <main class="profiles-main">
+        <h1 class="profiles-heading">Who's working today?</h1>
+        <div class="pcard-grid" id="profile-selector-grid">
+          <!-- Cards rendered by JS -->
         </div>
       </main>
+    </div>
+
+    <!-- Hidden management panel (used by JS for save/delete) -->
+    <div aria-hidden="true" style="display:none">
+      <p id="profile-select-meta"></p>
+      <form id="profile-update-form">
+        <input id="profile-edit-input" type="text" maxlength="120">
+        <button type="submit" id="save-profile-button">Save</button>
+        <button type="button" id="delete-profile-button">Delete</button>
+      </form>
+    </div>
+
+    <!-- Create profile modal -->
+    <div class="pmodal" id="create-profile-modal" hidden>
+      <div class="pmodal-backdrop" id="pmodal-backdrop"></div>
+      <div class="pmodal-card">
+        <div class="pmodal-head">
+          <h2>New profile</h2>
+          <button class="pmodal-close" type="button" id="pmodal-close-btn" aria-label="Close">✕</button>
+        </div>
+        <form class="form-stack" id="profile-form">
+          <div>
+            <label class="field-label" for="profile-name-input">Profile name</label>
+            <input id="profile-name-input" type="text" maxlength="120"
+              placeholder="e.g. Backend Engineer, AI Research">
+          </div>
+          <button class="primary-button" type="submit" id="create-profile-button">Create</button>
+        </form>
+      </div>
     </div>
 
     <div class="toast-region" id="toast-region" aria-live="polite"></div>

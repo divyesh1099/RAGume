@@ -5,72 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>RAGume · Evidence</title>
     <meta name="description" content="Upload evidence and let the profile update automatically.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   </head>
   <body data-page="evidence">
-    <div class="app-frame">
-      <header class="topbar">
+    <div class="app-shell">
+      <nav class="sidebar" aria-label="Main navigation">
         <a class="brand" href="/">
           <span class="brand-mark">RG</span>
-          <span class="brand-copy">
-            <strong>RAGume</strong>
-            <span>Profile Studio</span>
-          </span>
+          <span class="brand-name">RAGume</span>
         </a>
-        <nav class="topnav">
-          <a class="topnav-link is-active" href="/">Evidence</a>
-          <a class="topnav-link" href="/profile">Profile Studio</a>
-          <a class="topnav-link" href="/job">Job Description</a>
-          <a class="topnav-link" href="/wiki">Wiki</a>
-          <a class="topnav-link" href="/benchmarks">Benchmarks</a>
-        </nav>
-        <div class="topbar-actions">
-          <button class="secondary-button" type="button" id="switch-profile-button">Switch Profile</button>
-          <span class="identity-pill" id="auth-user-pill">Account</span>
-          <button class="secondary-button" type="button" id="logout-button">Sign Out</button>
+
+        <div class="sidenav">
+          <a class="sidenav-link is-active" href="/">Evidence</a>
+          <a class="sidenav-link" href="/resume">Resume &amp; CV</a>
+          <a class="sidenav-link" href="/job">Job Match</a>
+          <span class="sidenav-sep"></span>
+          <a class="sidenav-link sidenav-dev" href="/benchmarks">Benchmarks</a>
         </div>
-      </header>
 
-      <main class="page-stack">
-        <section class="hero-panel">
-          <span class="eyebrow">RAGume Evidence</span>
-          <h1>Upload files. Update the profile.</h1>
-          <p>Drop resumes, certificates, project notes, experience letters, or portfolio documents. The extracted profile updates automatically, and Profile Studio lets you clean it up fast.</p>
-          <div class="hero-meta">
-            <div>
-              <strong id="current-profile-name">Loading profile</strong>
-              <span id="current-profile-meta">Preparing workspace context.</span>
-            </div>
-            <span class="subtle" id="engine-summary">Connecting to the workspace.</span>
+        <div class="sidebar-foot">
+          <div class="sidebar-profile-chip">
+            <div class="sidebar-profile-name" id="current-profile-name">Loading</div>
+            <div class="sidebar-profile-sub" id="current-profile-meta">—</div>
           </div>
-          <div class="tag-row" id="runtime-health-badges">
-            <span class="chip">Checking runtime status</span>
+          <div class="sidebar-actions">
+            <button class="sidebar-btn" type="button" id="switch-profile-button">Switch</button>
+            <button class="sidebar-btn sidebar-signout" type="button" id="logout-button">Sign Out</button>
           </div>
-        </section>
+          <span class="sidebar-user-pill" id="auth-user-pill">Account</span>
+        </div>
+      </nav>
 
-        <section class="stats-row">
+      <main class="main-content">
+        <div class="page-header">
+          <h1>Evidence</h1>
+          <p>Upload resumes, certificates, and project notes. The profile updates automatically.</p>
+          <div class="page-context">
+            <span class="page-context-meta" id="engine-summary">Connecting to workspace.</span>
+          </div>
+        </div>
+
+        <div class="tag-row" id="runtime-health-badges">
+          <span class="chip">Checking runtime</span>
+        </div>
+
+        <div class="stats-row">
           <article class="metric-card">
             <span>Documents</span>
-            <strong id="metric-documents">0</strong>
+            <strong class="metric-num" id="metric-documents">0</strong>
           </article>
           <article class="metric-card">
             <span>Experience</span>
-            <strong id="metric-pending">0</strong>
+            <strong class="metric-num" id="metric-pending">0</strong>
           </article>
           <article class="metric-card">
             <span>Projects</span>
-            <strong id="metric-approved">0</strong>
+            <strong class="metric-num" id="metric-approved">0</strong>
           </article>
           <article class="metric-card">
             <span>Skills</span>
-            <strong id="metric-graph">0</strong>
+            <strong class="metric-num" id="metric-graph">0</strong>
           </article>
-        </section>
+        </div>
 
-        <section class="split-grid">
+        <div class="split-grid">
           <article class="surface">
             <div class="surface-header">
               <div>
@@ -80,38 +79,39 @@
             </div>
             <form class="form-stack" id="upload-form">
               <label class="dropzone" for="file-input" id="dropzone">
-                <input id="file-input" name="files" type="file" accept=".txt,.md,.json,.pdf,.docx,.yaml,.yml,.csv,.log" multiple>
-                <span class="dropzone-title">Drop files here or choose them</span>
-                <span class="dropzone-copy">TXT, MD, JSON, PDF, DOCX, YAML, CSV, LOG</span>
-                <span class="dropzone-foot" id="selected-file-label">Nothing selected yet.</span>
+                <input id="file-input" name="files" type="file"
+                  accept=".txt,.md,.json,.pdf,.docx,.yaml,.yml,.csv,.log" multiple>
+                <span class="dropzone-title">Drop files here or click to choose</span>
+                <span class="dropzone-copy">PDF, DOCX, TXT, MD, JSON, YAML, CSV, LOG</span>
+                <span class="dropzone-foot" id="selected-file-label">Nothing selected.</span>
               </label>
-              <div class="stack-list compact-stack">
+              <div class="stack-list">
                 <label class="field-label" for="parser-backend-select">Parser backend</label>
-                <select id="parser-backend-select" aria-label="Select parser backend for uploads and re-runs">
+                <select id="parser-backend-select">
                   <option value="layout_ner">Layout + NER</option>
                 </select>
-                <p class="subtle" id="parser-backend-hint">Choose how resume-like evidence should be structured before it updates the profile.</p>
+                <p class="subtle" id="parser-backend-hint">Choose how resume-like evidence is structured.</p>
               </div>
               <button class="primary-button" type="submit" id="upload-button">Upload evidence</button>
             </form>
-            <p class="subtle" id="upload-status">New uploads are processed automatically and merged into the current profile.</p>
+            <p class="subtle" id="upload-status">New uploads are processed and merged into the current profile.</p>
           </article>
 
           <article class="surface">
             <div class="surface-header">
               <div>
-                <span class="eyebrow">Latest source</span>
+                <span class="eyebrow">Selected source</span>
                 <h2>Detected details</h2>
               </div>
             </div>
             <div class="selected-evidence" id="selected-document-summary">
-              <div class="empty-state">Pick a document to inspect it here.</div>
+              <div class="empty-state">Pick a document to inspect it.</div>
             </div>
             <div class="tag-row" id="selected-document-signals">
               <span class="empty-inline">No source selected.</span>
             </div>
             <div class="stack-list" id="selected-document-highlights">
-              <div class="empty-state">Upload evidence to see what was detected from it.</div>
+              <div class="empty-state">Upload evidence to see what was detected.</div>
             </div>
             <div class="stack-list" id="selected-document-validation">
               <div class="empty-state">Parser validation will appear here after upload.</div>
@@ -122,15 +122,15 @@
             <div class="inline-row wrap">
               <button class="secondary-button" type="button" id="reparse-document-button" disabled>Re-run Parser</button>
               <button class="secondary-button" type="button" id="compare-parsers-button" disabled>Compare Parsers</button>
-              <button class="secondary-button danger-button" type="button" id="delete-document-button" disabled>Delete Evidence</button>
+              <button class="secondary-button danger-button" type="button" id="delete-document-button" disabled>Delete</button>
             </div>
             <div class="stack-list" id="selected-document-parser-comparison">
-              <div class="empty-state">Run parser comparison to inspect side-by-side extraction quality for this source.</div>
+              <div class="empty-state">Run comparison to inspect side-by-side extraction quality.</div>
             </div>
           </article>
-        </section>
+        </div>
 
-        <section class="surface">
+        <article class="surface">
           <div class="surface-header">
             <div>
               <span class="eyebrow">Live profile</span>
@@ -139,46 +139,46 @@
             <a class="secondary-button" href="/profile">Open Profile Studio</a>
           </div>
           <div class="profile-snapshot-grid">
-            <article class="profile-block">
+            <div class="profile-block">
               <span class="profile-block-label">Identity</span>
               <div id="profile-identity-card" class="stack-list">
                 <div class="empty-state">Identity details will appear here after upload.</div>
               </div>
-            </article>
-            <article class="profile-block">
-              <span class="profile-block-label">Contact and links</span>
+            </div>
+            <div class="profile-block">
+              <span class="profile-block-label">Contact &amp; links</span>
               <div id="profile-contact-card" class="stack-list">
-                <div class="empty-state">Contact details and public links will appear here after upload.</div>
+                <div class="empty-state">Contact details will appear here after upload.</div>
               </div>
-            </article>
-            <article class="profile-block span-2">
+            </div>
+            <div class="profile-block span-2">
               <span class="profile-block-label">Skills</span>
               <div class="tag-row" id="profile-skills">
                 <span class="empty-inline">No skills extracted yet.</span>
               </div>
-            </article>
-            <article class="profile-block">
+            </div>
+            <div class="profile-block">
               <span class="profile-block-label">Work experience</span>
               <div class="stack-list" id="profile-experience-list">
                 <div class="empty-state">Work experience will appear here after upload.</div>
               </div>
-            </article>
-            <article class="profile-block">
+            </div>
+            <div class="profile-block">
               <span class="profile-block-label">Education</span>
               <div class="stack-list" id="profile-education-list">
-                <div class="empty-state">Education details will appear here after upload.</div>
+                <div class="empty-state">Education will appear here after upload.</div>
               </div>
-            </article>
-            <article class="profile-block span-2">
+            </div>
+            <div class="profile-block span-2">
               <span class="profile-block-label">Projects</span>
               <div class="stack-list" id="profile-project-list">
                 <div class="empty-state">Projects will appear here after upload.</div>
               </div>
-            </article>
+            </div>
           </div>
-        </section>
+        </article>
 
-        <section class="surface">
+        <article class="surface">
           <div class="surface-header">
             <div>
               <span class="eyebrow">Evidence library</span>
@@ -188,9 +188,9 @@
           <div class="document-list" id="document-list">
             <div class="empty-state">Uploaded documents will appear here.</div>
           </div>
-        </section>
+        </article>
 
-        <section class="surface">
+        <article class="surface">
           <div class="surface-header">
             <div>
               <span class="eyebrow">Source coverage</span>
@@ -200,7 +200,7 @@
           <div class="stack-list" id="profile-source-list">
             <div class="empty-state">Evidence sources will appear here after upload.</div>
           </div>
-        </section>
+        </article>
       </main>
     </div>
 
